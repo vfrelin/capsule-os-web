@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4f46e5">
+    <title>Capsule Shop OS - V3.0 Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com?plugins=line-clamp"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; }
+        #receipt-content { font-family: 'Courier New', Courier, monospace; width: 320px; color: black; background: white; padding: 20px; font-size: 12px; line-height: 1.2; }
+        .receipt-dashed { border-bottom: 1px dashed black; margin: 8px 0; }
+        .modal-enter { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 pb-16 md:pb-0">
+
+    <div id="login-modal" class="fixed inset-0 bg-gray-900 z-[200] flex justify-center items-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm modal-enter border-t-8 border-indigo-600">
+            <h2 class="text-2xl font-black mb-2 text-center text-gray-800">Capsule OS Cloud</h2>
+            <p class="text-center text-gray-500 text-sm mb-6" id="login-status">Conectando a la base de datos...</p>
+            <input type="text" id="login-user" placeholder="Usuario" class="w-full mb-4 border-2 border-gray-200 rounded-lg p-3 bg-gray-50 outline-none focus:border-indigo-500 transition">
+            <input type="password" id="login-pass" placeholder="Contraseña" class="w-full mb-6 border-2 border-gray-200 rounded-lg p-3 bg-gray-50 outline-none focus:border-indigo-500 transition">
+            <button onclick="handleLogin()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition shadow-lg active:scale-95"><i class="fa-solid fa-right-to-bracket mr-2"></i> Acceder</button>
+        </div>
+    </div>
+
+    <nav class="bg-indigo-600 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <img id="nav-logo" src="https://via.placeholder.com/40" class="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover border-2 border-white bg-white">
+                    <span id="nav-store-name" class="font-bold text-lg md:text-xl tracking-wider uppercase truncate">Capsule Shop</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-2">
+                    <button data-target="dashboard" onclick="changeTab('dashboard')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition"><i class="fa-solid fa-chart-pie mr-1"></i> Dashboard</button>
+                    <button data-target="pos" onclick="changeTab('pos')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition"><i class="fa-solid fa-cash-register mr-1"></i> POS</button>
+                    <button data-target="inventory" onclick="changeTab('inventory')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition"><i class="fa-solid fa-box mr-1"></i> Inventario</button>
+                    <button data-target="catalog" onclick="changeTab('catalog')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition"><i class="fa-solid fa-store mr-1"></i> Catálogo</button>
+                    <button data-target="settings" onclick="changeTab('settings')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition"><i class="fa-solid fa-gear mr-1"></i> Ajustes</button>
+                </div>
+                <button onclick="handleLogout()" class="px-3 py-2 rounded-md text-lg md:text-sm font-bold text-red-200 hover:text-white hover:bg-red-500 transition"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-24 md:mb-10 relative z-10">
+        <section id="tab-dashboard" class="tab-content"><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4"><h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-chart-pie text-indigo-600"></i> Panel de Estadísticas</h2></div><div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8"><div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500"><p class="text-xs font-bold text-gray-400">Costo Inv.</p><h3 id="dash-inv-cost" class="text-lg md:text-2xl font-black">0.00</h3></div><div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-emerald-500"><p class="text-xs font-bold text-gray-400">Vendido</p><h3 id="dash-total-sales" class="text-lg md:text-2xl font-black text-emerald-600">0.00</h3></div></div></section>
+
+        <section id="tab-pos" class="tab-content hidden"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-2 gap-3"><h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-cash-register text-indigo-600"></i> Punto de Venta</h2></div><div class="flex flex-col lg:flex-row gap-6"><div class="w-full lg:w-7/12 flex flex-col gap-4"><div id="pos-product-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] p-1"></div></div><div class="w-full lg:w-5/12 bg-white rounded-xl shadow-lg border flex flex-col"><div class="p-4 bg-white rounded-b-xl border-t"><div class="flex justify-between items-center mb-4"><span class="font-bold text-gray-800">Total</span><span id="pos-total" class="font-black text-2xl text-indigo-700">0.00</span></div><button onclick="processCheckout()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 active:scale-95 shadow-md">Cobrar</button></div></div></div></section>
+
+        <section id="tab-inventory" class="tab-content hidden"><div class="flex justify-between items-center mb-6 border-b pb-4"><h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-boxes-stacked text-indigo-600"></i> Inventario</h2><button onclick="toggleProductForm()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Nuevo</button></div><div id="product-form-container" class="hidden bg-white p-5 rounded-xl shadow-md border mb-6 relative"><form id="product-form" class="space-y-4"><input type="hidden" id="prod-id"><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-xs font-bold mb-1">Nombre</label><input type="text" id="prod-name" class="w-full border rounded p-2 bg-gray-50 outline-none" required></div><div><label class="block text-xs font-bold mb-1">Precio</label><input type="number" id="prod-price" step="0.01" class="w-full border rounded p-2 bg-gray-50 outline-none" required></div><div><label class="block text-xs font-bold mb-1">Stock</label><input type="number" id="prod-stock" class="w-full border rounded p-2 bg-gray-50 outline-none" required></div></div><button type="submit" class="bg-emerald-600 text-white font-bold px-8 py-3 rounded-lg shadow-md mt-4">Guardar</button></form></div><div id="inventory-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+
+        <section id="tab-catalog" class="tab-content hidden"><h2>Catálogo en construcción...</h2></section>
+        <section id="tab-settings" class="tab-content hidden"><h2>Ajustes en construcción...</h2></section>
+    </main>
+
+    <div class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t flex justify-around items-center h-16 z-[150] pb-safe shadow"><button data-target="dashboard" onclick="changeTab('dashboard')" class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-indigo-600 transition"><i class="fa-solid fa-chart-pie text-xl mb-1"></i><span class="text-[10px] font-bold">Panel</span></button><button data-target="pos" onclick="changeTab('pos')" class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-gray-400"><i class="fa-solid fa-cash-register text-xl mb-1"></i><span class="text-[10px] font-bold">POS</span></button><button data-target="inventory" onclick="changeTab('inventory')" class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-gray-400"><i class="fa-solid fa-box text-xl mb-1"></i><span class="text-[10px] font-bold">Stock</span></button></div>
+
+    <script>
+        // GLOBALS & CLOUD SYNC LOGIC (Actualizado para Multi-tenant y Local-First)
+        const STORE_ID = "main_store"; // Identificador de la tienda
+        
+        let inventory = []; let salesHistory = []; let customersDB = [];
+        let usersDB = [{ user: 'admin', pass: 'admin123', role: 'admin' }];
+        let currentUser = JSON.parse(localStorage.getItem('capsuleCurrentUser')) || null;
+        let posCart = [];
+
+        async function syncToCloud() {
+            // 1. Local-First: Guardar siempre en el navegador primero
+            const settings = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+            localStorage.setItem('capsuleInventory', JSON.stringify(inventory)); 
+            localStorage.setItem('capsuleSales', JSON.stringify(salesHistory));
+            localStorage.setItem('capsuleUsers', JSON.stringify(usersDB)); 
+            localStorage.setItem('capsuleCustomers', JSON.stringify(customersDB));
+
+            // 2. Preparar Payload con STORE_ID para Multi-Tenant
+            const payload = { store_id: STORE_ID, inventory, salesHistory, usersDB, customersDB, settings };
+            
+            try { 
+                const response = await fetch('/api/data', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+                if (!response.ok) throw new Error("API Falló");
+            } catch (error) { 
+                console.warn("Modo Offline. Los datos están a salvo localmente."); 
+            }
+        }
+
+        window.onload = async () => {
+            const statusLabel = document.getElementById('login-status');
+            try {
+                // Hacemos GET usando el STORE_ID
+                const res = await fetch('/api/data/' + STORE_ID);
+                if (res.ok) {
+                    const cloudData = await res.json();
+                    inventory = cloudData.inventory || []; 
+                    salesHistory = cloudData.salesHistory || [];
+                    usersDB = cloudData.usersDB || [{ user: 'admin', pass: 'admin123', role: 'admin' }]; 
+                    customersDB = cloudData.customersDB || [];
+                    if(cloudData.settings && Object.keys(cloudData.settings).length > 0) {
+                        localStorage.setItem('capsuleSettings', JSON.stringify(cloudData.settings));
+                    }
+                    statusLabel.innerText = "Sincronización exitosa. Inicia sesión.";
+                } else {
+                    throw new Error("API Falló");
+                }
+            } catch (error) {
+                console.warn("Usando respaldo local."); 
+                statusLabel.innerText = "Modo Offline Activo.";
+                inventory = JSON.parse(localStorage.getItem('capsuleInventory')) || []; 
+                salesHistory = JSON.parse(localStorage.getItem('capsuleSales')) || [];
+                usersDB = JSON.parse(localStorage.getItem('capsuleUsers')) || [{ user: 'admin', pass: 'admin123', role: 'admin' }]; 
+                customersDB = JSON.parse(localStorage.getItem('capsuleCustomers')) || [];
+            }
+            
+            checkAuth(); 
+            renderInventory(); 
+            renderPOSProducts();
+            renderDashboard();
+        };
+
+        // LÓGICA BÁSICA MINIMIZADA PARA COMPATIBILIDAD
+        function checkAuth() { 
+            if (!currentUser) document.getElementById('login-modal').classList.remove('hidden'); 
+            else { document.getElementById('login-modal').classList.add('hidden'); changeTab(currentUser.role === 'admin' ? 'dashboard' : 'pos'); } 
+        }
+        function handleLogin() { 
+            const u = document.getElementById('login-user').value.trim(); 
+            const p = document.getElementById('login-pass').value.trim(); 
+            const found = usersDB.find(x => x.user === u && x.pass === p); 
+            if (found) { currentUser = { user: found.user, role: found.role }; localStorage.setItem('capsuleCurrentUser', JSON.stringify(currentUser)); checkAuth(); } 
+            else alert('Credenciales incorrectas.'); 
+        }
+        function handleLogout() { if(confirm('¿Salir?')) { currentUser = null; localStorage.removeItem('capsuleCurrentUser'); checkAuth(); } }
+        
+        function changeTab(tabId) { 
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden')); 
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden'); 
+        }
+
+        function toggleProductForm() { document.getElementById('product-form-container').classList.toggle('hidden'); }
+        
+        document.getElementById('product-form').addEventListener('submit', function(e) { 
+            e.preventDefault(); 
+            const id = document.getElementById('prod-id').value || 'PRD-' + Date.now(); 
+            const np = { 
+                id: id, 
+                name: document.getElementById('prod-name').value, 
+                price: parseFloat(document.getElementById('prod-price').value), 
+                stock: parseInt(document.getElementById('prod-stock').value) 
+            }; 
+            const idx = inventory.findIndex(p => p.id === id); 
+            if (idx > -1) inventory[idx] = np; else inventory.push(np); 
+            toggleProductForm(); renderInventory(); renderPOSProducts(); renderDashboard(); syncToCloud(); 
+            this.reset();
+        });
+
+        function renderInventory() { 
+            const list = document.getElementById('inventory-list'); 
+            list.innerHTML = inventory.map(p => `<div class="bg-white p-3 rounded shadow border"><b>${p.name}</b><br>Precio: ${p.price} | Stock: ${p.stock}</div>`).join(''); 
+        }
+
+        function renderPOSProducts() { 
+            const list = document.getElementById('pos-product-grid'); 
+            list.innerHTML = inventory.filter(p=>p.stock>0).map(p=>`<div onclick="addToPOS('${p.id}')" class="bg-white p-2 rounded shadow border cursor-pointer text-center"><b>${p.name}</b><br>${p.price}</div>`).join(''); 
+        }
+
+        function addToPOS(id) { 
+            const p = inventory.find(x => x.id === id); 
+            const ex = posCart.find(i => i.id === id); 
+            if(ex && ex.qty < p.stock) ex.qty++; else if(!ex) posCart.push({ ...p, qty: 1 }); 
+            updatePOSUI(); 
+        }
+
+        function updatePOSUI() { 
+            let sub = 0; posCart.forEach(i => sub += i.price * i.qty); 
+            document.getElementById('pos-total').innerText = sub.toFixed(2); 
+        }
+
+        function processCheckout() {
+            if(posCart.length===0) return; let sub=0;
+            posCart.forEach(pi => { const inv = inventory.find(p=>p.id===pi.id); if(inv) inv.stock -= pi.qty; sub += pi.price*pi.qty; });
+            salesHistory.push({ id: 'FCT-'+Date.now(), items: [...posCart], total: sub });
+            syncToCloud(); posCart=[]; updatePOSUI(); renderInventory(); renderDashboard(); alert('Cobro exitoso');
+        }
+
+        function renderDashboard() {
+            let totalVendido = 0;
+            salesHistory.forEach(s => totalVendido += s.total);
+            document.getElementById('dash-total-sales').innerText = totalVendido.toFixed(2);
+            
+            let costoInv = 0;
+            inventory.forEach(p => costoInv += (p.price * p.stock));
+            document.getElementById('dash-inv-cost').innerText = costoInv.toFixed(2);
+        }
+    </script>
+</body>
+</html>
