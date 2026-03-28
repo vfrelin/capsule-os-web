@@ -1225,7 +1225,7 @@
                 </div>`;
 
             const waBtn = document.getElementById('modal-wa-btn');
-            if (s.whatsapp) { waBtn.href = `https://wa.me/${s.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola, me interesa: ' + p.name)}`; waBtn.style.display = 'block'; }
+            if (s.whatsapp) { const productUrl = `${window.location.origin}/catalog/${STORE_ID}#producto-${p.id}`; waBtn.href = `https://wa.me/${s.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola, me interesa consultar por este producto:\n\n📦 ' + p.name + '\n🔗 ' + productUrl)}`; waBtn.style.display = 'block'; }
             else { waBtn.style.display = 'none'; }
 
             updateModalPriceUI(); document.getElementById('product-modal').classList.remove('hidden');

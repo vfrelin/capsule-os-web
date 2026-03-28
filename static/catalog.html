@@ -409,7 +409,8 @@
 
             const waBtn = document.getElementById('modal-wa-btn');
             if (settings.whatsapp) {
-                waBtn.href = `https://wa.me/${settings.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Hola, me interesa: ' + p.name + ' — ' + curr + ' ' + p.price)}`;
+                const productUrl = `${window.location.origin}/catalog/${STORE_ID}#producto-${p.id}`;
+                waBtn.href = `https://wa.me/${settings.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Hola, me interesa consultar por este producto:\n\n📦 ' + p.name + '\n🔗 ' + productUrl)}`;
                 waBtn.style.display = 'flex';
             } else {
                 waBtn.style.display = 'none';
