@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com?plugins=line-clamp"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -340,13 +341,26 @@
                                     class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
                                 </div><span class="ml-3 text-sm font-bold">Público</span>
                             </label></div>
-                        <div class="md:col-span-4 space-y-2 mt-2"><label class="block text-xs font-bold mb-1">URLs
-                                Imágenes (1 es Obligatorio)</label><input type="url" id="prod-img1"
-                                class="w-full border rounded p-2 bg-gray-50 outline-none"
-                                placeholder="1. Principal"><input type="url" id="prod-img2"
-                                class="w-full border rounded p-2 bg-gray-50 outline-none"
-                                placeholder="2. Opcional"><input type="url" id="prod-img3"
-                                class="w-full border rounded p-2 bg-gray-50 outline-none" placeholder="3. Opcional">
+                        <div class="md:col-span-4 space-y-3 mt-2">
+                            <label class="block text-xs font-bold mb-1"><i class="fa-solid fa-images text-indigo-500 mr-1"></i>Imágenes del Producto</label>
+                            <!-- Imagen 1 -->
+                            <div class="flex items-center gap-3">
+                                <img id="prod-img1-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
+                                <input type="url" id="prod-img1" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen Principal">
+                                <button type="button" onclick="uploadToCloudinary('prod-img1')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
+                            </div>
+                            <!-- Imagen 2 -->
+                            <div class="flex items-center gap-3">
+                                <img id="prod-img2-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
+                                <input type="url" id="prod-img2" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 2 (Opcional)">
+                                <button type="button" onclick="uploadToCloudinary('prod-img2')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
+                            </div>
+                            <!-- Imagen 3 -->
+                            <div class="flex items-center gap-3">
+                                <img id="prod-img3-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
+                                <input type="url" id="prod-img3" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 3 (Opcional)">
+                                <button type="button" onclick="uploadToCloudinary('prod-img3')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
+                            </div>
                         </div>
                         <div class="md:col-span-4 mt-2"><label class="block text-xs font-bold mb-1">URL Video
                                 (YouTube)</label><input type="url" id="prod-video"
@@ -465,6 +479,15 @@
                                     id="set-tk" class="w-full border-b-2 p-2 outline-none"></div>
                             <div><label class="block text-xs font-bold text-gray-500">YouTube</label><input type="url"
                                     id="set-yt" class="w-full border-b-2 p-2 outline-none"></div>
+                        </div>
+                    </div>
+                    <!-- Cloudinary Config -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border lg:col-span-2">
+                        <h3 class="font-bold mb-1 text-indigo-700 text-sm uppercase"><i class="fa-solid fa-cloud mr-2"></i>Cloudinary (Imágenes en la Nube)</h3>
+                        <p class="text-[10px] text-gray-400 mb-4">Configura tu cuenta gratuita de Cloudinary para subir imágenes directamente desde el formulario de productos. <a href="https://cloudinary.com/users/register_free" target="_blank" class="text-indigo-500 underline">Crear cuenta gratis</a></p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-bold text-gray-500">Cloud Name</label><input type="text" id="set-cloudinary-name" class="w-full border-b-2 p-2 outline-none focus:border-indigo-500" placeholder="ej: dxyz1abc2"></div>
+                            <div><label class="block text-xs font-bold text-gray-500">Upload Preset (Unsigned)</label><input type="text" id="set-cloudinary-preset" class="w-full border-b-2 p-2 outline-none focus:border-indigo-500" placeholder="ej: ml_default"></div>
                         </div>
                     </div>
                 </div>
@@ -780,7 +803,7 @@
         }
         function loadSettings() {
             const s = JSON.parse(localStorage.getItem('capsuleSettings')) || { currency: 'L' };
-            document.getElementById('set-name').value = s.name || ''; document.getElementById('set-logo').value = s.logo || ''; document.getElementById('set-about').value = s.about || ''; document.getElementById('set-currency').value = s.currency || 'L'; document.getElementById('set-whatsapp').value = s.whatsapp || ''; document.getElementById('set-address').value = s.address || ''; document.getElementById('set-rtn').value = s.rtn || ''; document.getElementById('set-fb').value = s.fb || ''; document.getElementById('set-ig').value = s.ig || ''; document.getElementById('set-tk').value = s.tk || ''; document.getElementById('set-yt').value = s.yt || ''; document.getElementById('nav-store-name').innerText = s.name || 'Capsule'; if (s.logo) document.getElementById('nav-logo').src = s.logo; document.getElementById('cat-store-name').innerText = s.name || ''; if (s.logo) document.getElementById('cat-logo').src = s.logo;
+            document.getElementById('set-name').value = s.name || ''; document.getElementById('set-logo').value = s.logo || ''; document.getElementById('set-about').value = s.about || ''; document.getElementById('set-currency').value = s.currency || 'L'; document.getElementById('set-whatsapp').value = s.whatsapp || ''; document.getElementById('set-address').value = s.address || ''; document.getElementById('set-rtn').value = s.rtn || ''; document.getElementById('set-fb').value = s.fb || ''; document.getElementById('set-ig').value = s.ig || ''; document.getElementById('set-tk').value = s.tk || ''; document.getElementById('set-yt').value = s.yt || ''; document.getElementById('set-cloudinary-name').value = s.cloudinaryName || ''; document.getElementById('set-cloudinary-preset').value = s.cloudinaryPreset || ''; document.getElementById('nav-store-name').innerText = s.name || 'Capsule'; if (s.logo) document.getElementById('nav-logo').src = s.logo; document.getElementById('cat-store-name').innerText = s.name || ''; if (s.logo) document.getElementById('cat-logo').src = s.logo;
             let bioHtml = s.about || ''; if (s.address) bioHtml += `<br><span class="text-xs text-gray-400">${s.address}</span>`; document.getElementById('cat-about').innerHTML = bioHtml;
 
             let socialHtml = '';
@@ -793,7 +816,7 @@
         }
         document.getElementById('settings-form').addEventListener('submit', function (e) {
             e.preventDefault();
-            const s = { name: document.getElementById('set-name').value, logo: document.getElementById('set-logo').value, about: document.getElementById('set-about').value, currency: document.getElementById('set-currency').value, whatsapp: document.getElementById('set-whatsapp').value, address: document.getElementById('set-address').value, rtn: document.getElementById('set-rtn').value, fb: document.getElementById('set-fb').value, ig: document.getElementById('set-ig').value, tk: document.getElementById('set-tk').value, yt: document.getElementById('set-yt').value };
+            const s = { name: document.getElementById('set-name').value, logo: document.getElementById('set-logo').value, about: document.getElementById('set-about').value, currency: document.getElementById('set-currency').value, whatsapp: document.getElementById('set-whatsapp').value, address: document.getElementById('set-address').value, rtn: document.getElementById('set-rtn').value, fb: document.getElementById('set-fb').value, ig: document.getElementById('set-ig').value, tk: document.getElementById('set-tk').value, yt: document.getElementById('set-yt').value, cloudinaryName: document.getElementById('set-cloudinary-name').value, cloudinaryPreset: document.getElementById('set-cloudinary-preset').value };
             localStorage.setItem('capsuleSettings', JSON.stringify(s));
             loadSettings(); syncToCloud();
             const b = document.getElementById('save-btn'); const ot = b.innerHTML;
@@ -833,9 +856,57 @@
             const idx = inventory.findIndex(p => p.id === id); if (idx > -1) inventory[idx] = np; else inventory.push(np);
             toggleProductForm(); renderInventory(); syncToCloud();
         });
+
+        // ─────────────────────────────────────────────────────────────
+        // CLOUDINARY UPLOAD
+        // ─────────────────────────────────────────────────────────────
+        function updateImgPreview(fieldId) {
+            const input = document.getElementById(fieldId);
+            const preview = document.getElementById(fieldId + '-preview');
+            if (input.value) { preview.src = input.value; preview.classList.remove('hidden'); }
+            else { preview.src = ''; preview.classList.add('hidden'); }
+        }
+        function uploadToCloudinary(fieldId) {
+            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+            const cloudName = s.cloudinaryName;
+            const preset = s.cloudinaryPreset;
+            if (!cloudName || !preset) {
+                alert('⚠️ Configura primero tu cuenta de Cloudinary en la sección Ajustes.\n\n1. Ve a Ajustes\n2. Busca la sección "Cloudinary"\n3. Ingresa tu Cloud Name y Upload Preset\n4. Guarda los ajustes');
+                return;
+            }
+            cloudinary.openUploadWidget({
+                cloudName: cloudName,
+                uploadPreset: preset,
+                sources: ['local', 'url', 'camera'],
+                multiple: false,
+                maxFiles: 1,
+                cropping: true,
+                croppingAspectRatio: 1,
+                showSkipCropButton: true,
+                resourceType: 'image',
+                clientAllowedFormats: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+                maxImageFileSize: 5000000,
+                folder: 'capsule-products',
+                styles: {
+                    palette: { window: '#FFFFFF', windowBorder: '#4f46e5', tabIcon: '#4f46e5', menuIcons: '#555a5f', textDark: '#000000', textLight: '#FFFFFF', link: '#4f46e5', action: '#22c55e', inactiveTabIcon: '#9ca3af', error: '#ef4444', inProgress: '#4f46e5', complete: '#22c55e', sourceBg: '#f1f5f9' },
+                    fonts: { default: null, "'Inter', sans-serif": { url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap', active: true } }
+                }
+            }, (error, result) => {
+                if (!error && result && result.event === 'success') {
+                    const url = result.info.secure_url;
+                    document.getElementById(fieldId).value = url;
+                    updateImgPreview(fieldId);
+                }
+            });
+        }
+        // Preview listeners for manual URL paste
+        ['prod-img1', 'prod-img2', 'prod-img3'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => updateImgPreview(id));
+        });
         function editProduct(id) {
             const p = inventory.find(x => x.id === id); if (!p) return;
             document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-category').value = p.category; document.getElementById('prod-box').value = p.box || ''; document.getElementById('prod-cost').value = p.cost; document.getElementById('prod-price').value = p.price; document.getElementById('prod-stock').value = p.stock; document.getElementById('prod-desc').value = p.desc || ''; document.getElementById('prod-img1').value = p.img1 || ''; document.getElementById('prod-img2').value = p.img2 || ''; document.getElementById('prod-img3').value = p.img3 || ''; document.getElementById('prod-video').value = p.video || '';
+            updateImgPreview('prod-img1'); updateImgPreview('prod-img2'); updateImgPreview('prod-img3');
             document.getElementById('product-form-container').classList.remove('hidden'); window.scrollTo(0, 0);
         }
         function deleteProduct(id) { if (confirm('¿Eliminar?')) { inventory = inventory.filter(p => p.id !== id); renderInventory(); syncToCloud(); } }
