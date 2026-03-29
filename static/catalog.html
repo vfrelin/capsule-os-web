@@ -381,8 +381,19 @@
 
         function isDirectVideoUrl(url) {
             if (!url) return false;
-            return /\.(mp4|mov|webm|ogg)$/i.test(url) ||
+            return /\.(mp4|mov|webm|ogg|avi)$/i.test(url) ||
                    /res\.cloudinary\.com\/.+\/video\//i.test(url);
+        }
+        // Convierte URLs de Cloudinary con formato .mov/.avi a .mp4 para compatibilidad con navegadores
+        function getPlayableVideoUrl(url) {
+            if (!url) return url;
+            if (/res\.cloudinary\.com\/.+\/video\//i.test(url)) {
+                url = url.replace(/\.(mov|avi|wmv|mkv)(\?.*)?$/i, '.mp4$2');
+                if (!/\/upload\/.*?(f_|vc_)/i.test(url)) {
+                    url = url.replace('/upload/', '/upload/f_mp4,vc_auto/');
+                }
+            }
+            return url;
         }
 
         function openProductModal(id) {
@@ -401,7 +412,7 @@
             let videoHtml = '';
             if (p.video) {
                 if (isDirectVideoUrl(p.video)) {
-                    videoHtml = `<div class="mt-4"><video src="${p.video}" controls playsinline preload="metadata" class="w-full rounded-xl border bg-black" style="max-height:300px;"></video></div>`;
+                    videoHtml = `<div class="mt-4"><video controls playsinline preload="metadata" class="w-full rounded-xl border bg-black" style="max-height:300px;"><source src="${getPlayableVideoUrl(p.video)}" type="video/mp4">Tu navegador no soporta video.</video></div>`;
                 } else {
                     videoHtml = `<a href="${p.video}" target="_blank" class="mt-4 flex items-center justify-center gap-2 bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold border border-red-100 hover:bg-red-100 transition"><i class="fa-brands fa-youtube"></i> Ver demo en YouTube</a>`;
                 }

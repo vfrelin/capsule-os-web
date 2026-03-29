@@ -914,8 +914,23 @@
         // ─────────────────────────────────────────────────────────────
         function isDirectVideoUrl(url) {
             if (!url) return false;
-            return /\.(mp4|mov|webm|ogg)$/i.test(url) ||
+            return /\.(mp4|mov|webm|ogg|avi)$/i.test(url) ||
                    /res\.cloudinary\.com\/.+\/video\//i.test(url);
+        }
+        // Convierte URLs de Cloudinary con formato .mov/.avi a .mp4 para compatibilidad con navegadores
+        function getPlayableVideoUrl(url) {
+            if (!url) return url;
+            // Si es una URL de Cloudinary con formato no soportado por navegadores, convertir a .mp4
+            if (/res\.cloudinary\.com\/.+\/video\//i.test(url)) {
+                // Reemplazar extensión .mov, .avi, .wmv, .mkv por .mp4
+                url = url.replace(/\.(mov|avi|wmv|mkv)(\?.*)?$/i, '.mp4$2');
+                // Agregar transformación f_mp4 si no tiene transformaciones
+                // Formato URL Cloudinary: .../upload/[transformaciones/]v1234/folder/file.ext
+                if (!/\/upload\/.*?(f_|vc_)/i.test(url)) {
+                    url = url.replace('/upload/', '/upload/f_mp4,vc_auto/');
+                }
+            }
+            return url;
         }
         function uploadVideoToCloudinary() {
             const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
@@ -952,7 +967,7 @@
             const preview = document.getElementById('prod-video-preview');
             const player = document.getElementById('prod-video-player');
             if (url && isDirectVideoUrl(url)) {
-                player.src = url;
+                player.src = getPlayableVideoUrl(url);
                 preview.classList.remove('hidden');
             } else {
                 player.src = '';
@@ -1307,7 +1322,7 @@
             let videoHtml = '';
             if (p.video) {
                 if (isDirectVideoUrl(p.video)) {
-                    videoHtml = `<div class="mt-4"><video src="${p.video}" controls playsinline preload="metadata" class="w-full rounded-xl border bg-black" style="max-height:300px;"></video></div>`;
+                    videoHtml = `<div class="mt-4"><video controls playsinline preload="metadata" class="w-full rounded-xl border bg-black" style="max-height:300px;"><source src="${getPlayableVideoUrl(p.video)}" type="video/mp4">Tu navegador no soporta video.</video></div>`;
                 } else {
                     videoHtml = `<a href="${p.video}" target="_blank" class="mt-4 block text-center bg-red-50 text-red-600 p-3 rounded-lg text-sm font-bold border border-red-200"><i class="fa-brands fa-youtube mr-2"></i> Ver Demo en YouTube</a>`;
                 }
