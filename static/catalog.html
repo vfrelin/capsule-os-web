@@ -266,7 +266,32 @@
             renderCatalog();
             document.getElementById('skeleton-grid').classList.add('hidden');
             document.getElementById('catalog-list').classList.remove('hidden');
+
+            // Deep linking: abrir producto si la URL tiene #producto-{id}
+            checkHashAndOpenProduct();
         };
+
+        function checkHashAndOpenProduct() {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#producto-')) {
+                const productId = hash.replace('#producto-', '');
+                const product = inventory.find(p => p.id === productId);
+                if (product) {
+                    setTimeout(() => openProductModal(productId), 300);
+                }
+            }
+        }
+
+        // Escuchar cambios de hash (ej: usuario navega con botones atrás/adelante)
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#producto-')) {
+                const productId = hash.replace('#producto-', '');
+                openProductModal(productId);
+            } else {
+                closeProductModal();
+            }
+        });
 
         // ============================================================
         // STORE INFO
@@ -396,12 +421,19 @@
             return url;
         }
 
+        function getProductUrl(productId) {
+            return `${window.location.origin}/catalog/${STORE_ID}#producto-${productId}`;
+        }
+
         function openProductModal(id) {
             const p = inventory.find(x => x.id === id);
             if (!p) return;
             currentModalProductId = id;
             currentModalQty = 1;
             const curr = settings.currency || 'L';
+
+            // Actualizar hash en la URL sin recargar la página
+            history.replaceState(null, '', `#producto-${id}`);
 
             const imgs = [p.img1, p.img2, p.img3].filter(Boolean);
             const carouselImgs = imgs.map(src => `<img src="${src}" class="min-w-full aspect-square object-cover snap-center" onerror="this.src='https://via.placeholder.com/400'">`).join('');
@@ -418,10 +450,16 @@
                 }
             }
 
+            const productUrl = getProductUrl(p.id);
+
             document.getElementById('product-modal-content').innerHTML = `
                 <div class="relative">
                     <div id="modal-carousel" class="flex overflow-x-auto snap-x snap-mandatory" style="-ms-overflow-style:none;scrollbar-width:none">${carouselImgs}</div>
                     ${navBtns}
+                    <!-- Botón compartir sobre la imagen -->
+                    <button onclick="shareProduct('${p.id}')" class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-gray-700 w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white hover:text-indigo-600 transition z-20" title="Compartir producto">
+                        <i class="fa-solid fa-share-from-square text-sm"></i>
+                    </button>
                 </div>
                 <div class="p-5">
                     <span class="text-xs font-bold text-indigo-500 uppercase tracking-wide">${p.category}</span>
@@ -430,11 +468,14 @@
                     ${p.stock <= 5 ? `<span class="inline-block bg-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full mt-2">¡Solo ${p.stock} en stock!</span>` : `<span class="inline-block bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full mt-2">✓ Disponible</span>`}
                     <p class="text-sm text-gray-600 mt-4 leading-relaxed whitespace-pre-wrap">${p.desc || 'Sin descripción.'}</p>
                     ${videoHtml}
+                    <!-- Botón de compartir en el contenido -->
+                    <button onclick="shareProduct('${p.id}')" class="mt-5 w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 active:scale-95 transition text-sm">
+                        <i class="fa-solid fa-share-from-square"></i> Compartir este producto
+                    </button>
                 </div>`;
 
             const waBtn = document.getElementById('modal-wa-btn');
             if (settings.whatsapp) {
-                const productUrl = `${window.location.origin}/catalog/${STORE_ID}#producto-${p.id}`;
                 waBtn.href = `https://wa.me/${settings.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Hola, me interesa consultar por este producto:\n\n📦 ' + p.name + '\n🔗 ' + productUrl)}`;
                 waBtn.style.display = 'flex';
             } else {
@@ -449,6 +490,37 @@
         function closeProductModal() {
             document.getElementById('product-modal').classList.add('hidden');
             document.body.style.overflow = '';
+            // Limpiar el hash al cerrar el modal
+            if (window.location.hash.startsWith('#producto-')) {
+                history.replaceState(null, '', window.location.pathname);
+            }
+        }
+
+        // ============================================================
+        // COMPARTIR PRODUCTO
+        // ============================================================
+        function shareProduct(productId) {
+            const p = inventory.find(x => x.id === productId);
+            if (!p) return;
+            const productUrl = getProductUrl(productId);
+            const shareText = `${p.name} — ${(settings.currency || 'L')} ${parseFloat(p.price).toFixed(2)}`;
+
+            // Intentar usar la API nativa de compartir (funciona en móviles)
+            if (navigator.share) {
+                navigator.share({
+                    title: p.name,
+                    text: shareText,
+                    url: productUrl
+                }).catch(() => {});
+            } else {
+                // Fallback: copiar al portapapeles
+                navigator.clipboard.writeText(productUrl).then(() => {
+                    showToast('🔗 Enlace del producto copiado');
+                }).catch(() => {
+                    // Fallback final: prompt
+                    prompt('Copia este enlace para compartir:', productUrl);
+                });
+            }
         }
 
         function updateModalQty(delta) {
