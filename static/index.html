@@ -139,6 +139,11 @@
                         class="flex items-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold px-4 py-2.5 rounded-lg text-sm shadow-md transition-all">
                         <i class="fa-solid fa-download"></i> Descargar Informe
                     </button>
+                    <button onclick="confirmPurgeAllSales()"
+                        class="flex items-center gap-2 bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold px-4 py-2.5 rounded-lg text-sm shadow-md transition-all"
+                        title="Eliminar todas las ventas registradas">
+                        <i class="fa-solid fa-trash-can"></i> Purgar Ventas
+                    </button>
                 </div>
             </div>
 
@@ -657,6 +662,24 @@
             </div><button onclick="downloadPDFQuote()"
                 class="w-full md:w-auto px-10 bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700"><i
                     class="fa-solid fa-download mr-2"></i> Descargar Cotización PDF</button>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALLE DE VENTA -->
+    <div id="sale-detail-modal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] hidden flex justify-center items-end md:items-center p-0 md:p-4">
+        <div class="bg-white w-full max-w-md h-[85vh] md:h-auto md:max-h-[85vh] flex flex-col rounded-t-2xl md:rounded-2xl overflow-hidden shadow-2xl modal-enter">
+            <div id="sale-detail-header" class="px-5 py-4 text-white flex justify-between items-center">
+                <div>
+                    <h3 id="sale-detail-title" class="font-black text-lg"></h3>
+                    <p id="sale-detail-date" class="text-white/80 text-xs mt-0.5"></p>
+                </div>
+                <button onclick="closeSaleDetail()" class="bg-white/20 hover:bg-white/30 w-9 h-9 rounded-full flex items-center justify-center transition">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div id="sale-detail-content" class="flex-grow overflow-y-auto p-5"></div>
+            <div id="sale-detail-actions" class="p-4 border-t bg-gray-50 flex gap-3"></div>
         </div>
     </div>
 
@@ -1732,7 +1755,7 @@
             });
         }
         function _sumSales(sales) {
-            return sales.reduce((acc, s) => acc + s.total, 0);
+            return sales.filter(s => s.status !== 'ANULADA').reduce((acc, s) => acc + s.total, 0);
         }
         function _fmt(val, curr) {
             return `${curr} ${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
@@ -1800,7 +1823,7 @@
             document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-indigo-400'));
 
             let totalSold = 0, totalProfit = 0, productSalesCounter = {};
-            filteredSales.forEach(sale => {
+            filteredSales.filter(s => s.status !== 'ANULADA').forEach(sale => {
                 totalSold += sale.total;
                 totalProfit += sale.profit;
                 sale.items.forEach(item => {
@@ -1854,15 +1877,16 @@
                 recentSalesList.innerHTML = '<p class="text-xs text-gray-400 text-center mt-6">No hay transacciones en este período.</p>';
             else recentSales.forEach(sale => {
                 const dateStr = new Date(sale.date).toLocaleDateString('es-HN');
-                recentSalesList.innerHTML += `<div class="p-2.5 border-b last:border-0">
+                const isVoided = sale.status === 'ANULADA';
+                recentSalesList.innerHTML += `<div class="p-2.5 border-b last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg transition ${isVoided ? 'opacity-50' : ''}" onclick="openSaleDetail('${sale.id}')">
                     <div class="flex justify-between items-center">
-                        <span class="text-[10px] font-bold text-indigo-500">${sale.id}</span>
+                        <span class="text-[10px] font-bold ${isVoided ? 'text-red-500 line-through' : 'text-indigo-500'}">${sale.id} ${isVoided ? '<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded no-underline ml-1">ANULADA</span>' : ''}</span>
                         <span class="text-[9px] text-gray-400">${dateStr}</span>
                     </div>
                     <div class="flex justify-between items-end mt-1">
                         <div><h4 class="text-xs font-bold text-gray-700">${sale.customer}</h4>
                         <p class="text-[10px] text-gray-500">${sale.items.length} item(s)</p></div>
-                        <span class="font-black text-gray-800 text-sm">${curr}${sale.total.toFixed(2)}</span>
+                        <span class="font-black text-sm ${isVoided ? 'text-red-400 line-through' : 'text-gray-800'}">${curr}${sale.total.toFixed(2)}</span>
                     </div>
                 </div>`;
             });
@@ -1946,6 +1970,149 @@
             a.download = `Informe_Ventas_${dateTag}.html`;
             a.click();
             URL.revokeObjectURL(url);
+        }
+
+        // ============================================================
+        // GESTIÓN DE VENTAS: Detalle, Anular, Eliminar, Purgar
+        // ============================================================
+        function openSaleDetail(saleId) {
+            const sale = salesHistory.find(s => s.id === saleId);
+            if (!sale) return;
+            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || { currency: 'L' };
+            const curr = s.currency || 'L';
+            const isVoided = sale.status === 'ANULADA';
+
+            const header = document.getElementById('sale-detail-header');
+            header.className = `px-5 py-4 text-white flex justify-between items-center ${isVoided ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`;
+
+            document.getElementById('sale-detail-title').innerHTML = `<i class="fa-solid fa-file-invoice mr-2"></i>${sale.id} ${isVoided ? '<span class="bg-white/20 text-xs px-2 py-0.5 rounded-full ml-2">ANULADA</span>' : ''}`;
+            document.getElementById('sale-detail-date').innerText = new Date(sale.date).toLocaleString('es-HN');
+
+            let itemsHtml = sale.items.map(item => `
+                <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                    <div class="flex items-center gap-3">
+                        <img src="${item.img1 || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-lg object-cover border">
+                        <div>
+                            <p class="text-xs font-bold text-gray-800">${item.name}</p>
+                            <p class="text-[10px] text-gray-500">${item.qty} x ${curr}${item.price.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <span class="font-bold text-sm">${curr}${(item.qty * item.price).toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('sale-detail-content').innerHTML = `
+                ${isVoided ? '<div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2"><i class="fa-solid fa-ban text-red-500"></i><span class="text-xs font-bold text-red-600">Esta venta fue anulada' + (sale.voidDate ? ' el ' + new Date(sale.voidDate).toLocaleString('es-HN') : '') + (sale.voidReason ? '. Motivo: ' + sale.voidReason : '') + '</span></div>' : ''}
+                <div class="bg-gray-50 rounded-xl p-3 mb-4">
+                    <div class="flex justify-between text-xs mb-1"><span class="text-gray-500">Cliente:</span><span class="font-bold">${sale.customer}</span></div>
+                    <div class="flex justify-between text-xs mb-1"><span class="text-gray-500">Productos:</span><span class="font-bold">${sale.items.length} artículo(s)</span></div>
+                    ${sale.shipping ? '<div class="flex justify-between text-xs mb-1"><span class="text-gray-500">Envío:</span><span class="font-bold">' + curr + sale.shipping.toFixed(2) + '</span></div>' : ''}
+                </div>
+                <div class="space-y-0 mb-4">${itemsHtml}</div>
+                <div class="bg-indigo-50 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-2"><span class="text-xs text-gray-500">Subtotal:</span><span class="font-bold text-sm">${curr}${sale.subtotal.toFixed(2)}</span></div>
+                    ${sale.shipping ? '<div class="flex justify-between items-center mb-2"><span class="text-xs text-gray-500">Envío:</span><span class="font-bold text-sm">' + curr + sale.shipping.toFixed(2) + '</span></div>' : ''}
+                    <div class="flex justify-between items-center border-t border-indigo-200 pt-2"><span class="font-bold text-gray-700">Total:</span><span class="font-black text-xl ${isVoided ? 'text-red-500 line-through' : 'text-indigo-600'}">${curr}${sale.total.toFixed(2)}</span></div>
+                    ${sale.profit != null ? '<div class="flex justify-between items-center mt-1"><span class="text-xs text-gray-500">Ganancia:</span><span class="font-bold text-sm text-emerald-600">' + curr + sale.profit.toFixed(2) + '</span></div>' : ''}
+                </div>
+            `;
+
+            const actionsDiv = document.getElementById('sale-detail-actions');
+            if (isVoided) {
+                actionsDiv.innerHTML = `
+                    <button onclick="deleteSale('${sale.id}')" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl active:scale-95 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar Registro
+                    </button>
+                    <button onclick="closeSaleDetail()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-xl active:scale-95 transition">
+                        Cerrar
+                    </button>
+                `;
+            } else {
+                actionsDiv.innerHTML = `
+                    <button onclick="voidSale('${sale.id}')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl active:scale-95 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-ban"></i> Anular Venta
+                    </button>
+                    <button onclick="deleteSale('${sale.id}')" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl active:scale-95 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar
+                    </button>
+                `;
+            }
+
+            document.getElementById('sale-detail-modal').classList.remove('hidden');
+        }
+
+        function closeSaleDetail() {
+            document.getElementById('sale-detail-modal').classList.add('hidden');
+        }
+
+        // Cerrar modal al hacer clic en el fondo
+        document.getElementById('sale-detail-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeSaleDetail();
+        });
+
+        function voidSale(saleId) {
+            const sale = salesHistory.find(s => s.id === saleId);
+            if (!sale) return;
+            const reason = prompt('Motivo de anulación (opcional):');
+            if (reason === null) return; // usuario canceló
+
+            // Restaurar stock de los productos vendidos
+            sale.items.forEach(item => {
+                const invItem = inventory.find(p => p.id === item.id);
+                if (invItem) {
+                    invItem.stock += item.qty;
+                }
+            });
+
+            // Marcar como anulada (conservar registro para auditoría)
+            sale.status = 'ANULADA';
+            sale.voidDate = new Date().toISOString();
+            sale.voidReason = reason || '';
+
+            syncToCloud();
+            renderDashboard();
+            renderInventory();
+            closeSaleDetail();
+            alert(`✅ Venta ${saleId} anulada exitosamente.\nEl stock ha sido restaurado.`);
+        }
+
+        function deleteSale(saleId) {
+            if (!confirm(`¿Estás seguro de ELIMINAR permanentemente la venta ${saleId}?\n\nEsta acción no se puede deshacer.`)) return;
+
+            const sale = salesHistory.find(s => s.id === saleId);
+            if (sale && sale.status !== 'ANULADA') {
+                // Si no fue anulada antes, restaurar stock al eliminar
+                sale.items.forEach(item => {
+                    const invItem = inventory.find(p => p.id === item.id);
+                    if (invItem) {
+                        invItem.stock += item.qty;
+                    }
+                });
+            }
+
+            salesHistory = salesHistory.filter(s => s.id !== saleId);
+
+            syncToCloud();
+            renderDashboard();
+            renderInventory();
+            closeSaleDetail();
+            alert(`🗑️ Venta ${saleId} eliminada permanentemente.`);
+        }
+
+        function confirmPurgeAllSales() {
+            const count = salesHistory.length;
+            if (count === 0) { alert('No hay ventas registradas para eliminar.'); return; }
+
+            const confirmText = prompt(`⚠️ ADVERTENCIA: Esto eliminará TODAS las ${count} ventas registradas.\n\nEl stock NO será restaurado (usa \"Anular\" individualmente si necesitas restaurar stock).\n\nEscribe ELIMINAR para confirmar:`);
+            if (confirmText !== 'ELIMINAR') {
+                if (confirmText !== null) alert('Operación cancelada. Debes escribir ELIMINAR exactamente.');
+                return;
+            }
+
+            salesHistory = [];
+            syncToCloud();
+            renderDashboard();
+            alert(`🗑️ Se eliminaron ${count} ventas. El historial está limpio.`);
         }
 
         // ============================================================
