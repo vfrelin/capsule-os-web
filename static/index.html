@@ -319,7 +319,8 @@
                                 type="text" id="prod-name" class="w-full border rounded p-2 bg-gray-50 outline-none"
                                 required></div>
                         <div><label class="block text-xs font-bold mb-1">Categoría</label><input type="text"
-                                id="prod-category" class="w-full border rounded p-2 bg-gray-50 outline-none" required>
+                                id="prod-category" list="category-list" class="w-full border rounded p-2 bg-gray-50 outline-none" required>
+                            <datalist id="category-list"></datalist>
                         </div>
                         <div><label class="block text-xs font-bold mb-1">Caja/Ubic</label><input type="text"
                                 id="prod-box" class="w-full border rounded p-2 bg-gray-50 outline-none"></div>
@@ -362,9 +363,16 @@
                                 <button type="button" onclick="uploadToCloudinary('prod-img3')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
                             </div>
                         </div>
-                        <div class="md:col-span-4 mt-2"><label class="block text-xs font-bold mb-1">URL Video
-                                (YouTube)</label><input type="url" id="prod-video"
-                                class="w-full border rounded p-2 bg-gray-50 outline-none"></div>
+                        <div class="md:col-span-4 mt-2 space-y-2">
+                            <label class="block text-xs font-bold mb-1"><i class="fa-solid fa-video text-indigo-500 mr-1"></i>Video del Producto</label>
+                            <div class="flex items-center gap-3">
+                                <input type="url" id="prod-video" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Video (Cloudinary, YouTube, etc.)">
+                                <button type="button" onclick="uploadVideoToCloudinary()" class="bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-purple-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir Video</button>
+                            </div>
+                            <div id="prod-video-preview" class="hidden">
+                                <video id="prod-video-player" controls class="w-full max-h-48 rounded-lg border bg-black" preload="metadata"></video>
+                            </div>
+                        </div>
                     </div>
                     <div class="flex justify-end pt-4"><button type="submit"
                             class="bg-emerald-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-emerald-700 shadow-md">Guardar</button>
@@ -766,7 +774,7 @@
                 usersDB = JSON.parse(localStorage.getItem('capsuleUsers')) || [{ user: 'admin', pass: 'admin123', role: 'admin' }];
                 customersDB = JSON.parse(localStorage.getItem('capsuleCustomers')) || [];
             }
-            loadSettings(); renderInventory(); updateCustomerDatalist(); checkAuth();
+            loadSettings(); renderInventory(); updateCustomerDatalist(); updateCategoryDatalist(); checkAuth();
             updateViewButtonUI('btn-catalog', currentCatalogView); updateViewButtonUI('btn-pos', currentPOSView); updateViewButtonUI('btn-inv', currentInventoryView);
         };
 
@@ -854,7 +862,9 @@
             const id = document.getElementById('prod-id').value || 'PRD-' + Date.now();
             const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value };
             const idx = inventory.findIndex(p => p.id === id); if (idx > -1) inventory[idx] = np; else inventory.push(np);
-            toggleProductForm(); renderInventory(); syncToCloud();
+            // Guardar categoría nueva en la lista persistente
+            saveCategoryIfNew(np.category);
+            toggleProductForm(); renderInventory(); updateCategoryDatalist(); syncToCloud();
         });
 
         // ─────────────────────────────────────────────────────────────
@@ -899,6 +909,86 @@
                 }
             });
         }
+        // ─────────────────────────────────────────────────────────────
+        // VIDEO UPLOAD VIA CLOUDINARY
+        // ─────────────────────────────────────────────────────────────
+        function isDirectVideoUrl(url) {
+            if (!url) return false;
+            return /\.(mp4|mov|webm|ogg)$/i.test(url) ||
+                   /res\.cloudinary\.com\/.+\/video\//i.test(url);
+        }
+        function uploadVideoToCloudinary() {
+            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+            const cloudName = s.cloudinaryName;
+            const preset = s.cloudinaryPreset;
+            if (!cloudName || !preset) {
+                alert('⚠️ Configura primero tu cuenta de Cloudinary en la sección Ajustes.\n\n1. Ve a Ajustes\n2. Busca la sección "Cloudinary"\n3. Ingresa tu Cloud Name y Upload Preset\n4. Guarda los ajustes');
+                return;
+            }
+            cloudinary.openUploadWidget({
+                cloudName: cloudName,
+                uploadPreset: preset,
+                sources: ['local', 'url', 'camera'],
+                multiple: false,
+                maxFiles: 1,
+                resourceType: 'video',
+                clientAllowedFormats: ['mp4', 'mov', 'webm', 'ogg', 'avi'],
+                maxVideoFileSize: 104857600,
+                folder: 'capsule-videos',
+                styles: {
+                    palette: { window: '#FFFFFF', windowBorder: '#7c3aed', tabIcon: '#7c3aed', menuIcons: '#555a5f', textDark: '#000000', textLight: '#FFFFFF', link: '#7c3aed', action: '#22c55e', inactiveTabIcon: '#9ca3af', error: '#ef4444', inProgress: '#7c3aed', complete: '#22c55e', sourceBg: '#f1f5f9' },
+                    fonts: { default: null, "'Inter', sans-serif": { url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap', active: true } }
+                }
+            }, (error, result) => {
+                if (!error && result && result.event === 'success') {
+                    const url = result.info.secure_url;
+                    document.getElementById('prod-video').value = url;
+                    updateVideoPreview();
+                }
+            });
+        }
+        function updateVideoPreview() {
+            const url = document.getElementById('prod-video').value;
+            const preview = document.getElementById('prod-video-preview');
+            const player = document.getElementById('prod-video-player');
+            if (url && isDirectVideoUrl(url)) {
+                player.src = url;
+                preview.classList.remove('hidden');
+            } else {
+                player.src = '';
+                preview.classList.add('hidden');
+            }
+        }
+        document.getElementById('prod-video').addEventListener('input', updateVideoPreview);
+
+        // ─────────────────────────────────────────────────────────────
+        // CATEGORÍAS PERSISTENTES CON DATALIST
+        // ─────────────────────────────────────────────────────────────
+        function getSavedCategories() {
+            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+            return s.categories || [];
+        }
+        function saveCategoryIfNew(cat) {
+            if (!cat || !cat.trim()) return;
+            cat = cat.trim();
+            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+            if (!s.categories) s.categories = [];
+            if (!s.categories.find(c => c.toLowerCase() === cat.toLowerCase())) {
+                s.categories.push(cat);
+                localStorage.setItem('capsuleSettings', JSON.stringify(s));
+            }
+        }
+        function updateCategoryDatalist() {
+            // Combinar categorías guardadas en settings + categorías del inventario actual
+            const saved = getSavedCategories();
+            const fromInventory = [...new Set(inventory.map(p => p.category).filter(Boolean))];
+            const allCats = [...new Set([...saved, ...fromInventory])];
+            allCats.sort((a, b) => a.localeCompare(b, 'es'));
+            document.getElementById('category-list').innerHTML = allCats.map(c =>
+                `<option value="${c}">`
+            ).join('');
+        }
+
         // Preview listeners for manual URL paste
         ['prod-img1', 'prod-img2', 'prod-img3'].forEach(id => {
             document.getElementById(id).addEventListener('input', () => updateImgPreview(id));
@@ -907,6 +997,7 @@
             const p = inventory.find(x => x.id === id); if (!p) return;
             document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-category').value = p.category; document.getElementById('prod-box').value = p.box || ''; document.getElementById('prod-cost').value = p.cost; document.getElementById('prod-price').value = p.price; document.getElementById('prod-stock').value = p.stock; document.getElementById('prod-desc').value = p.desc || ''; document.getElementById('prod-img1').value = p.img1 || ''; document.getElementById('prod-img2').value = p.img2 || ''; document.getElementById('prod-img3').value = p.img3 || ''; document.getElementById('prod-video').value = p.video || '';
             updateImgPreview('prod-img1'); updateImgPreview('prod-img2'); updateImgPreview('prod-img3');
+            updateVideoPreview(); updateCategoryDatalist();
             document.getElementById('product-form-container').classList.remove('hidden'); window.scrollTo(0, 0);
         }
         function deleteProduct(id) { if (confirm('¿Eliminar?')) { inventory = inventory.filter(p => p.id !== id); renderInventory(); syncToCloud(); } }
@@ -1213,7 +1304,14 @@
                 ` : ''}
             </div>`;
 
-            let videoBtn = p.video ? `<a href="${p.video}" target="_blank" class="mt-4 block text-center bg-red-50 text-red-600 p-3 rounded-lg text-sm font-bold border border-red-200"><i class="fa-brands fa-youtube mr-2"></i> Ver Demo en YouTube</a>` : '';
+            let videoHtml = '';
+            if (p.video) {
+                if (isDirectVideoUrl(p.video)) {
+                    videoHtml = `<div class="mt-4"><video src="${p.video}" controls playsinline preload="metadata" class="w-full rounded-xl border bg-black" style="max-height:300px;"></video></div>`;
+                } else {
+                    videoHtml = `<a href="${p.video}" target="_blank" class="mt-4 block text-center bg-red-50 text-red-600 p-3 rounded-lg text-sm font-bold border border-red-200"><i class="fa-brands fa-youtube mr-2"></i> Ver Demo en YouTube</a>`;
+                }
+            }
 
             document.getElementById('product-modal-content').innerHTML = `
                 ${mediaHtml}
@@ -1221,7 +1319,7 @@
                     <h2 class="text-xl font-black">${p.name}</h2>
                     <p class="text-3xl font-black text-indigo-600 mt-1">${p.price.toFixed(2)}</p>
                     <p class="text-sm mt-4 whitespace-pre-wrap">${p.desc || 'Sin descripción'}</p>
-                    ${videoBtn}
+                    ${videoHtml}
                 </div>`;
 
             const waBtn = document.getElementById('modal-wa-btn');

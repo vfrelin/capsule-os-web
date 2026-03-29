@@ -379,6 +379,12 @@
             c.scrollBy({ left: dir * c.clientWidth, behavior: 'smooth' });
         }
 
+        function isDirectVideoUrl(url) {
+            if (!url) return false;
+            return /\.(mp4|mov|webm|ogg)$/i.test(url) ||
+                   /res\.cloudinary\.com\/.+\/video\//i.test(url);
+        }
+
         function openProductModal(id) {
             const p = inventory.find(x => x.id === id);
             if (!p) return;
@@ -391,7 +397,15 @@
             const navBtns = imgs.length > 1 ? `
                 <button onclick="scrollModalImages(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition"><i class="fa-solid fa-chevron-left text-sm"></i></button>
                 <button onclick="scrollModalImages(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition"><i class="fa-solid fa-chevron-right text-sm"></i></button>` : '';
-            const videoBtn = p.video ? `<a href="${p.video}" target="_blank" class="mt-4 flex items-center justify-center gap-2 bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold border border-red-100 hover:bg-red-100 transition"><i class="fa-brands fa-youtube"></i> Ver demo en YouTube</a>` : '';
+
+            let videoHtml = '';
+            if (p.video) {
+                if (isDirectVideoUrl(p.video)) {
+                    videoHtml = `<div class="mt-4"><video src="${p.video}" controls playsinline preload="metadata" class="w-full rounded-xl border bg-black" style="max-height:300px;"></video></div>`;
+                } else {
+                    videoHtml = `<a href="${p.video}" target="_blank" class="mt-4 flex items-center justify-center gap-2 bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold border border-red-100 hover:bg-red-100 transition"><i class="fa-brands fa-youtube"></i> Ver demo en YouTube</a>`;
+                }
+            }
 
             document.getElementById('product-modal-content').innerHTML = `
                 <div class="relative">
@@ -404,7 +418,7 @@
                     <p class="text-3xl font-black text-indigo-600 mt-2">${curr} ${parseFloat(p.price).toFixed(2)}</p>
                     ${p.stock <= 5 ? `<span class="inline-block bg-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full mt-2">¡Solo ${p.stock} en stock!</span>` : `<span class="inline-block bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full mt-2">✓ Disponible</span>`}
                     <p class="text-sm text-gray-600 mt-4 leading-relaxed whitespace-pre-wrap">${p.desc || 'Sin descripción.'}</p>
-                    ${videoBtn}
+                    ${videoHtml}
                 </div>`;
 
             const waBtn = document.getElementById('modal-wa-btn');
