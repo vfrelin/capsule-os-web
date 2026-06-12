@@ -390,6 +390,15 @@
                     </div>
                 </form>
             </div>
+            <div class="flex flex-col sm:flex-row gap-3 mb-4 bg-white p-3 rounded-xl border shadow-sm">
+                <div class="relative flex-grow">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" id="inv-search" oninput="renderInventory()" placeholder="Buscar producto por título, caja o descripción..." class="w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-lg outline-none focus:border-indigo-500 text-sm">
+                </div>
+                <select id="inv-cat-filter" onchange="renderInventory()" class="bg-gray-50 border rounded-lg px-3 py-2 outline-none text-sm focus:border-indigo-500 min-w-[180px]">
+                    <option value="Todos">Todas las Categorías</option>
+                </select>
+            </div>
             <div id="inventory-list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
         </section>
 
@@ -917,7 +926,27 @@
         function setInventoryView(view) { currentInventoryView = view; updateViewButtonUI('btn-inv', view); renderInventory(); }
         function renderInventory() {
             const list = document.getElementById('inventory-list'); const curr = document.getElementById('set-currency').value || 'L'; list.innerHTML = '';
-            const prods = [...inventory].reverse();
+            
+            const searchQ = (document.getElementById('inv-search')?.value || '').toLowerCase();
+            const filterCat = document.getElementById('inv-cat-filter')?.value || 'Todos';
+            
+            let prods = [...inventory].reverse();
+            
+            if (searchQ) {
+                prods = prods.filter(p => 
+                    (p.name && p.name.toLowerCase().includes(searchQ)) || 
+                    (p.desc && p.desc.toLowerCase().includes(searchQ)) ||
+                    (p.box && p.box.toLowerCase().includes(searchQ))
+                );
+            }
+            if (filterCat !== 'Todos') {
+                prods = prods.filter(p => p.category === filterCat);
+            }
+
+            if (prods.length === 0) {
+                list.innerHTML = '<div class="col-span-full p-10 text-center text-gray-400"><i class="fa-solid fa-box-open text-4xl mb-3"></i><p>No se encontraron productos.</p></div>';
+                return;
+            }
 
             if (currentInventoryView === 'grid') {
                 list.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
@@ -1099,6 +1128,17 @@
             document.getElementById('category-list').innerHTML = allCats.map(c =>
                 `<option value="${c}">`
             ).join('');
+            
+            const filterSelect = document.getElementById('inv-cat-filter');
+            if (filterSelect) {
+                const currentVal = filterSelect.value;
+                let optionsHtml = '<option value="Todos">Todas las Categorías</option>';
+                allCats.forEach(c => {
+                    optionsHtml += `<option value="${c}">${c}</option>`;
+                });
+                filterSelect.innerHTML = optionsHtml;
+                if (allCats.includes(currentVal)) filterSelect.value = currentVal;
+            }
         }
 
         // Preview listeners for manual URL paste
