@@ -304,9 +304,15 @@
             document.getElementById('page-title').innerText = (s.name || 'Tienda') + ' — Catálogo';
             document.querySelector('meta[name="description"]').content = s.about || 'Explora nuestros productos';
             if (s.logo) document.getElementById('store-logo').src = s.logo;
-            let bio = s.about || '';
-            if (s.address) bio += (bio ? '\n' : '') + '📍 ' + s.address;
-            document.getElementById('store-bio').innerText = bio;
+            let bioHtml = (s.about || '').replace(/\n/g, '<br>');
+            if (s.address) {
+                if (s.mapsUrl) {
+                    bioHtml += (bioHtml ? '<br>' : '') + `📍 <a href="${s.mapsUrl}" target="_blank" class="underline hover:text-indigo-200 transition font-bold cursor-pointer" title="Abrir en Google Maps">${s.address}</a>`;
+                } else {
+                    bioHtml += (bioHtml ? '<br>' : '') + '📍 ' + s.address;
+                }
+            }
+            document.getElementById('store-bio').innerHTML = bioHtml;
 
             const socials = document.getElementById('store-socials');
             let html = '';

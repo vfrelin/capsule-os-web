@@ -480,6 +480,10 @@
                                     type="text" id="set-address"
                                     class="w-full border-b-2 p-2 bg-transparent outline-none focus:border-indigo-500">
                             </div>
+                            <div><label class="block text-xs font-bold text-gray-500">Enlace de Google Maps</label><input
+                                    type="url" id="set-maps-url" placeholder="https://maps.app.goo.gl/..."
+                                    class="w-full border-b-2 p-2 bg-transparent outline-none focus:border-indigo-500">
+                            </div>
                             <div><label class="block text-xs font-bold text-gray-500">Moneda Local</label><select
                                     id="set-currency" class="w-full border-2 rounded p-2 bg-gray-50">
                                     <option value="L">HN - Lempiras (L)</option>
@@ -881,8 +885,8 @@
         }
         function loadSettings() {
             const s = JSON.parse(localStorage.getItem('capsuleSettings')) || { currency: 'L' };
-            document.getElementById('set-name').value = s.name || ''; document.getElementById('set-logo').value = s.logo || ''; document.getElementById('set-about').value = s.about || ''; document.getElementById('set-currency').value = s.currency || 'L'; document.getElementById('set-whatsapp').value = s.whatsapp || ''; document.getElementById('set-address').value = s.address || ''; document.getElementById('set-rtn').value = s.rtn || ''; document.getElementById('set-fb').value = s.fb || ''; document.getElementById('set-ig').value = s.ig || ''; document.getElementById('set-tk').value = s.tk || ''; document.getElementById('set-yt').value = s.yt || ''; document.getElementById('set-cloudinary-name').value = s.cloudinaryName || ''; document.getElementById('set-cloudinary-preset').value = s.cloudinaryPreset || ''; document.getElementById('nav-store-name').innerText = s.name || 'Capsule'; if (s.logo) document.getElementById('nav-logo').src = s.logo; document.getElementById('cat-store-name').innerText = s.name || ''; if (s.logo) document.getElementById('cat-logo').src = s.logo;
-            let bioHtml = s.about || ''; if (s.address) bioHtml += `<br><span class="text-xs text-gray-400">${s.address}</span>`; document.getElementById('cat-about').innerHTML = bioHtml;
+            document.getElementById('set-name').value = s.name || ''; document.getElementById('set-logo').value = s.logo || ''; document.getElementById('set-about').value = s.about || ''; document.getElementById('set-currency').value = s.currency || 'L'; document.getElementById('set-whatsapp').value = s.whatsapp || ''; document.getElementById('set-address').value = s.address || ''; document.getElementById('set-maps-url').value = s.mapsUrl || ''; document.getElementById('set-rtn').value = s.rtn || ''; document.getElementById('set-fb').value = s.fb || ''; document.getElementById('set-ig').value = s.ig || ''; document.getElementById('set-tk').value = s.tk || ''; document.getElementById('set-yt').value = s.yt || ''; document.getElementById('set-cloudinary-name').value = s.cloudinaryName || ''; document.getElementById('set-cloudinary-preset').value = s.cloudinaryPreset || ''; document.getElementById('nav-store-name').innerText = s.name || 'Capsule'; if (s.logo) document.getElementById('nav-logo').src = s.logo; document.getElementById('cat-store-name').innerText = s.name || ''; if (s.logo) document.getElementById('cat-logo').src = s.logo;
+            let bioHtml = s.about || ''; if (s.address) { if (s.mapsUrl) { bioHtml += `<br><a href="${s.mapsUrl}" target="_blank" class="text-xs text-indigo-400 hover:underline"><i class="fa-solid fa-location-dot"></i> ${s.address}</a>`; } else { bioHtml += `<br><span class="text-xs text-gray-400">${s.address}</span>`; } } document.getElementById('cat-about').innerHTML = bioHtml;
 
             let socialHtml = '';
             if (s.whatsapp) socialHtml += `<a href="https://wa.me/${s.whatsapp.replace(/\D/g, '')}" target="_blank" class="text-green-500 hover:scale-125 transition transform"><i class="fa-brands fa-whatsapp"></i></a>`;
@@ -894,7 +898,7 @@
         }
         document.getElementById('settings-form').addEventListener('submit', function (e) {
             e.preventDefault();
-            const s = { name: document.getElementById('set-name').value, logo: document.getElementById('set-logo').value, about: document.getElementById('set-about').value, currency: document.getElementById('set-currency').value, whatsapp: document.getElementById('set-whatsapp').value, address: document.getElementById('set-address').value, rtn: document.getElementById('set-rtn').value, fb: document.getElementById('set-fb').value, ig: document.getElementById('set-ig').value, tk: document.getElementById('set-tk').value, yt: document.getElementById('set-yt').value, cloudinaryName: document.getElementById('set-cloudinary-name').value, cloudinaryPreset: document.getElementById('set-cloudinary-preset').value };
+            const s = { name: document.getElementById('set-name').value, logo: document.getElementById('set-logo').value, about: document.getElementById('set-about').value, currency: document.getElementById('set-currency').value, whatsapp: document.getElementById('set-whatsapp').value, address: document.getElementById('set-address').value, mapsUrl: document.getElementById('set-maps-url').value, rtn: document.getElementById('set-rtn').value, fb: document.getElementById('set-fb').value, ig: document.getElementById('set-ig').value, tk: document.getElementById('set-tk').value, yt: document.getElementById('set-yt').value, cloudinaryName: document.getElementById('set-cloudinary-name').value, cloudinaryPreset: document.getElementById('set-cloudinary-preset').value };
             localStorage.setItem('capsuleSettings', JSON.stringify(s));
             loadSettings(); syncToCloud();
             const b = document.getElementById('save-btn'); const ot = b.innerHTML;
