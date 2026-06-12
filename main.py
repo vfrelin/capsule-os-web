@@ -48,14 +48,8 @@ def clean_mongo_doc(doc):
 @app.get("/api/data/{store_id}")
 def get_data(store_id: str):
     if not MONGO_OK or collection is None:
-        logger.warning("MongoDB no disponible, retornando datos vacíos.")
-        return {
-            "inventory": [],
-            "salesHistory": [],
-            "usersDB": [{"user": "admin", "pass": "admin123", "role": "admin"}],
-            "customersDB": [],
-            "settings": {"name": store_id}
-        }
+        logger.warning("MongoDB no disponible. Retornando error para activar modo offline.")
+        raise HTTPException(status_code=503, detail="MongoDB no conectado")
     try:
         data = collection.find_one({"_id": store_id})
         if not data:
@@ -85,7 +79,7 @@ def get_data(store_id: str):
 def save_data(data: AppData):
     if not MONGO_OK or collection is None:
         logger.error("MongoDB no disponible. No se pudo guardar.")
-        return {"status": "error", "message": "MongoDB no conectado"}
+        raise HTTPException(status_code=503, detail="MongoDB no conectado")
     try:
         store_data = data.dict()
         store_id = store_data.pop("store_id")
