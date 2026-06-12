@@ -350,21 +350,27 @@
                         <div class="md:col-span-4 space-y-3 mt-2">
                             <label class="block text-xs font-bold mb-1"><i class="fa-solid fa-images text-indigo-500 mr-1"></i>Imágenes del Producto</label>
                             <!-- Imagen 1 -->
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
                                 <img id="prod-img1-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
                                 <input type="url" id="prod-img1" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen Principal">
+                                <button type="button" onclick="swapImages(1, 2)" class="text-gray-400 hover:text-indigo-600 transition" title="Bajar"><i class="fa-solid fa-arrow-down"></i></button>
                                 <button type="button" onclick="uploadToCloudinary('prod-img1')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
                             </div>
                             <!-- Imagen 2 -->
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
                                 <img id="prod-img2-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
                                 <input type="url" id="prod-img2" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 2 (Opcional)">
+                                <div class="flex flex-col">
+                                    <button type="button" onclick="swapImages(2, 1)" class="text-gray-400 hover:text-indigo-600 transition" title="Subir"><i class="fa-solid fa-arrow-up text-[10px]"></i></button>
+                                    <button type="button" onclick="swapImages(2, 3)" class="text-gray-400 hover:text-indigo-600 transition" title="Bajar"><i class="fa-solid fa-arrow-down text-[10px]"></i></button>
+                                </div>
                                 <button type="button" onclick="uploadToCloudinary('prod-img2')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
                             </div>
                             <!-- Imagen 3 -->
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
                                 <img id="prod-img3-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
                                 <input type="url" id="prod-img3" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 3 (Opcional)">
+                                <button type="button" onclick="swapImages(3, 2)" class="text-gray-400 hover:text-indigo-600 transition" title="Subir"><i class="fa-solid fa-arrow-up"></i></button>
                                 <button type="button" onclick="uploadToCloudinary('prod-img3')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
                             </div>
                         </div>
@@ -940,6 +946,29 @@
             if (input.value) { preview.src = input.value; preview.classList.remove('hidden'); }
             else { preview.src = ''; preview.classList.add('hidden'); }
         }
+        function swapImages(a, b) {
+            let inputA = document.getElementById('prod-img' + a);
+            let inputB = document.getElementById('prod-img' + b);
+            let previewA = document.getElementById('prod-img' + a + '-preview');
+            let previewB = document.getElementById('prod-img' + b + '-preview');
+            
+            // Swap URLs
+            let tempVal = inputA.value;
+            inputA.value = inputB.value;
+            inputB.value = tempVal;
+            
+            // Swap src for previews
+            let tempSrc = previewA.src;
+            previewA.src = previewB.src;
+            previewB.src = tempSrc;
+            
+            // Swap hidden state for previews
+            let aHidden = previewA.classList.contains('hidden');
+            let bHidden = previewB.classList.contains('hidden');
+            if (bHidden) previewA.classList.add('hidden'); else previewA.classList.remove('hidden');
+            if (aHidden) previewB.classList.add('hidden'); else previewB.classList.remove('hidden');
+        }
+
         function uploadToCloudinary(fieldId) {
             const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
             const cloudName = s.cloudinaryName;
