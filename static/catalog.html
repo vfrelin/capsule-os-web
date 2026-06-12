@@ -100,27 +100,29 @@
                     <input id="catalog-search" type="text" placeholder="Buscar productos..." oninput="renderCatalog()"
                         class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition text-sm">
                 </div>
+                <!-- Categories Dropdown -->
+                <select id="cat-dropdown" onchange="setCategory(this.value)"
+                    class="bg-gray-50 border border-gray-200 py-2.5 px-3 rounded-xl outline-none font-semibold text-sm w-full sm:w-auto min-w-[180px] focus:border-indigo-500 transition">
+                </select>
                 <!-- Sort -->
                 <select id="catalog-sort" onchange="renderCatalog()"
-                    class="bg-gray-50 border border-gray-200 py-2.5 px-3 rounded-xl outline-none font-semibold text-sm w-full sm:w-40 focus:border-indigo-500 transition">
+                    class="bg-gray-50 border border-gray-200 py-2.5 px-3 rounded-xl outline-none font-semibold text-sm w-full sm:w-auto focus:border-indigo-500 transition">
                     <option value="recent">🆕 Novedades</option>
                     <option value="price-asc">⬆ Menor Precio</option>
                     <option value="price-desc">⬇ Mayor Precio</option>
                 </select>
                 <!-- View toggle -->
-                <div class="flex gap-1 border border-gray-200 rounded-xl p-1 bg-gray-50">
+                <div class="flex gap-1 border border-gray-200 rounded-xl p-1 bg-gray-50 w-full sm:w-auto justify-center">
                     <button onclick="setCatalogView('grid')" id="btn-grid"
-                        class="p-2.5 rounded-lg text-indigo-600 bg-indigo-100 transition">
+                        class="p-2.5 rounded-lg text-indigo-600 bg-indigo-100 transition flex-grow">
                         <i class="fa-solid fa-table-cells-large text-sm"></i>
                     </button>
                     <button onclick="setCatalogView('list')" id="btn-list"
-                        class="p-2.5 rounded-lg text-gray-400 transition">
+                        class="p-2.5 rounded-lg text-gray-400 transition flex-grow">
                         <i class="fa-solid fa-list-ul text-sm"></i>
                     </button>
                 </div>
             </div>
-            <!-- Category pills -->
-            <div id="cat-pills" class="flex gap-2 overflow-x-auto no-scrollbar mt-2 pb-1"></div>
         </div>
     </div>
 
@@ -321,9 +323,8 @@
         // ============================================================
         function renderCategories() {
             const cats = ['Todos', ...new Set(inventory.filter(p => p.isPublic !== false && p.stock > 0).map(p => p.category))];
-            document.getElementById('cat-pills').innerHTML = cats.map(c =>
-                `<button onclick="setCategory('${c}')" class="cat-pill px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-all
-                    ${currentCategory === c ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400'}">${c}</button>`
+            document.getElementById('cat-dropdown').innerHTML = cats.map(c =>
+                `<option value="${c}" ${currentCategory === c ? 'selected' : ''}>${c === 'Todos' ? '🛒 Todas las Categorías' : '📁 ' + c}</option>`
             ).join('');
         }
 
