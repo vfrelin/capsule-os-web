@@ -660,11 +660,17 @@
                 <button onclick="closeReceiptModal()" class="text-gray-500 hover:text-red-500 w-8 h-8"><i
                         class="fa-solid fa-times text-xl"></i></button>
             </div>
-            <div id="receipt-container" class="bg-white shadow-md overflow-hidden flex justify-center p-2 mb-4 w-full">
+            <div id="receipt-container" class="bg-white shadow-md overflow-hidden flex justify-center p-2 mb-4 w-full" style="max-height: 50vh; overflow-y: auto;">
                 <div id="receipt-content" class="w-full"></div>
-            </div><button onclick="downloadPDFReceipt()"
-                class="w-full bg-red-600 text-white font-bold py-3.5 rounded-xl hover:bg-red-700"><i
-                    class="fa-solid fa-download mr-2"></i> Descargar PDF</button>
+            </div>
+            <div class="flex gap-2 w-full mt-2">
+                <button onclick="downloadPDFReceipt()"
+                    class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 text-sm flex items-center justify-center flex-col"><i
+                        class="fa-solid fa-download mb-1"></i> Descargar</button>
+                <button onclick="sendReceiptWhatsApp()"
+                    class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 text-sm flex items-center justify-center flex-col"><i
+                        class="fa-brands fa-whatsapp mb-1"></i> Enviar Mensaje</button>
+            </div>
         </div>
     </div>
     <div id="quote-modal"
@@ -1544,6 +1550,7 @@
             const custName = document.getElementById('pos-customer').value || 'Consumidor Final';
             const custPhone = document.getElementById('pos-phone').value || '';
             const custRtn = document.getElementById('pos-rtn').value || '';
+            const custNote = document.getElementById('pos-note').value || '';
 
             if (custName !== 'Consumidor Final') {
                 const exists = customersDB.find(c => c.name.toLowerCase() === custName.toLowerCase());
@@ -1554,7 +1561,7 @@
             posCart.forEach(pi => {
                 const inv = inventory.find(p => p.id === pi.id); if (inv) inv.stock -= pi.qty;
                 sub += pi.price * pi.qty; cost += pi.cost * pi.qty;
-                itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>${pi.qty}x ${pi.name}</span><span>${s.currency}${(pi.price * pi.qty).toFixed(2)}</span></div>`;
+                itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px;"><span><b style="color:#4f46e5;">${pi.qty}x</b> ${pi.name}</span><span>${s.currency}${(pi.price * pi.qty).toFixed(2)}</span></div>`;
             });
 
             const ship = parseFloat(document.getElementById('pos-shipping').value) || 0; const total = sub + ship;
@@ -1563,27 +1570,31 @@
             salesHistory.push({ id: saleId, date: new Date().toISOString(), customer: custName, items: [...posCart], subtotal: sub, total: total, profit: sub - cost, shipping: ship });
 
             document.getElementById('receipt-content').innerHTML = `
-                <div style="text-align:center; margin-bottom:10px;">
-                    <h2 style="font-weight:900; font-size:16px; margin:0;">${(s.name || 'CAPSULE SHOP').toUpperCase()}</h2>
-                    ${s.address ? `<p style="margin:2px 0;">Dirección: ${s.address}</p>` : ''}
-                    ${s.whatsapp ? `<p style="margin:2px 0;">Tel: ${s.whatsapp}</p>` : ''}
-                    ${s.rtn ? `<p style="margin:2px 0;">RTN: ${s.rtn}</p>` : ''}
+                <div style="font-family:Arial,sans-serif; color:#1f2937;">
+                    <div style="text-align:center; margin-bottom:10px; border-bottom:2px solid #4f46e5; padding-bottom:10px;">
+                        ${s.logo ? `<img src="${s.logo}" style="height:50px; width:50px; object-fit:cover; border-radius:8px; margin-bottom:6px; margin-left:auto; margin-right:auto; display:block;">` : ''}
+                        <h2 style="font-weight:900; font-size:16px; margin:0; color:#4f46e5; text-transform:uppercase;">${(s.name || 'CAPSULE SHOP').toUpperCase()}</h2>
+                        ${s.address ? `<p style="margin:2px 0; font-size:11px;">📍 ${s.address}</p>` : ''}
+                        ${s.whatsapp ? `<p style="margin:2px 0; font-size:11px;">📞 ${s.whatsapp}</p>` : ''}
+                        ${s.rtn ? `<p style="margin:2px 0; font-size:11px;">RTN: ${s.rtn}</p>` : ''}
+                    </div>
+                    <div style="margin-bottom:10px; font-size:12px; background:#f9fafb; padding:8px; border-radius:6px;">
+                        <p style="margin:2px 0;"><strong>FACTURA:</strong> ${saleId}</p>
+                        <p style="margin:2px 0;"><strong>FECHA:</strong> ${dateStr}</p>
+                        <p style="margin:2px 0;"><strong>CLIENTE:</strong> ${custName}</p>
+                        <p style="margin:2px 0;"><strong>RTN:</strong> ${custRtn || 'N/A'}</p>
+                        <p style="margin:2px 0;"><strong>TEL:</strong> ${custPhone || 'N/A'}</p>
+                        ${custNote ? `<p style="margin:4px 0; padding-top:4px; border-top:1px dashed #ccc; color:#4f46e5; font-weight:bold;">NOTA: ${custNote}</p>` : ''}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:5px; font-size:12px; background:#e5e7eb; padding:4px;"><span>CANT / DESCRIPCION</span><span>TOTAL</span></div>
+                    ${itemsHtml}
+                    <div style="border-bottom:1px dashed #ccc; margin-top:5px; margin-bottom:5px;"></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px;"><span>SUBTOTAL:</span><span>${s.currency}${sub.toFixed(2)}</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px;"><span>ENVIO:</span><span>${s.currency}${ship.toFixed(2)}</span></div>
+                    <div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; background:#f0fdf4; padding:6px; border-radius:6px; color:#059669;"><span>TOTAL A PAGAR:</span><span>${s.currency}${total.toFixed(2)}</span></div>
+                    <p style="text-align:center; margin-top:15px; font-style:italic; font-size:12px; font-weight:bold; color:#4f46e5;">¡GRACIAS POR SU COMPRA!</p>
+                    <p style="text-align:center; margin-top:5px; font-size:10px; color:#4b5563; border-top:1px dashed #ccc; padding-top:5px;">Garantía de 30 días por desperfectos de fábrica, válida únicamente presentando esta factura.</p>
                 </div>
-                <div style="margin-bottom:10px;">
-                    <p style="margin:2px 0;">FACTURA: ${saleId}</p>
-                    <p style="margin:2px 0;">FECHA: ${dateStr}</p>
-                    <p style="margin:2px 0;">CLIENTE: ${custName}</p>
-                    <p style="margin:2px 0;">RTN: ${custRtn || 'N/A'}</p>
-                    <p style="margin:2px 0;">TEL: ${custPhone || 'N/A'}</p>
-                </div>
-                <div style="border-bottom:1px dashed black; margin-bottom:5px;"></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:5px;"><span>DESCRIPCION</span><span>TOTAL</span></div>
-                ${itemsHtml}
-                <div style="border-bottom:1px dashed black; margin-top:5px; margin-bottom:5px;"></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>SUBTOTAL:</span><span>${s.currency}${sub.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>ENVIO:</span><span>${s.currency}${ship.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:13px; margin-top:5px;"><span>TOTAL A PAGAR:</span><span>${s.currency}${total.toFixed(2)}</span></div>
-                <p style="text-align:center; margin-top:15px; font-style:italic;">¡GRACIAS POR SU COMPRA!</p>
             `;
 
             syncToCloud(); clearPOSCart(); renderInventory(); document.getElementById('receipt-modal').classList.remove('hidden');
@@ -1673,14 +1684,12 @@
 
         function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); }
         function downloadPDFReceipt() {
-            // El receipt-content tiene width:300px en CSS.
-            // Con margin:0 el ancho útil del PDF es 80mm ≈ 302px, suficiente para 300px sin recorte.
-            // Clonamos el elemento para pasarlo desacoplado del DOM (evita PDF en blanco).
             const source = document.getElementById('receipt-content');
             const clone = source.cloneNode(true);
-            // Forzamos que el ancho del clon sea exactamente 276px
-            // (así cabe cómodamente en 80mm con margin:0 que da ≈302px disponibles)
             clone.style.cssText += '; width:276px !important; padding:10px !important; box-sizing:border-box;';
+            // Calcular la altura dinámica en milímetros. 1px = ~0.264583mm
+            // Añadimos un pequeño margen extra de seguridad (ej. 15mm)
+            const heightInMm = Math.max(150, (source.offsetHeight * 0.264583) + 15);
             const opt = {
                 margin: 0,
                 filename: 'Recibo_' + Date.now() + '.pdf',
@@ -1689,9 +1698,20 @@
                     scale: 3, useCORS: true, scrollX: 0, scrollY: 0,
                     logging: false, imageTimeout: 0
                 },
-                jsPDF: { unit: 'mm', format: [80, 280], orientation: 'portrait' }
+                jsPDF: { unit: 'mm', format: [80, heightInMm], orientation: 'portrait' }
             };
             html2pdf().set(opt).from(clone).save();
+        }
+
+        function sendReceiptWhatsApp() {
+            const custPhone = document.getElementById('pos-phone').value || '';
+            let phone = custPhone.replace(/\D/g, '');
+            if (phone && phone.length <= 8) {
+                phone = '504' + phone; // Default HN
+            }
+            const msg = "Gracias por su compra con Capsule Shop, adjuntamos factura\n\n✴️Si desea conocer más de nuestros productos puede ver nuestro catálogo oficial en el siguiente enlace:\n\n📍 http://bit.ly/4vL2TH5\n\nQuedamos atentos";
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
         }
 
         function closeQuoteModal() { document.getElementById('quote-modal').classList.add('hidden'); }
