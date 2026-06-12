@@ -323,9 +323,12 @@
                         <div class="md:col-span-2"><label class="block text-xs font-bold mb-1">Nombre</label><input
                                 type="text" id="prod-name" class="w-full border rounded p-2 bg-gray-50 outline-none"
                                 required></div>
-                        <div><label class="block text-xs font-bold mb-1">Categoría</label><input type="text"
-                                id="prod-category" list="category-list" class="w-full border rounded p-2 bg-gray-50 outline-none" required>
-                            <datalist id="category-list"></datalist>
+                        <div>
+                            <label class="block text-xs font-bold mb-1">Categoría</label>
+                            <div class="flex gap-1">
+                                <select id="prod-category" class="w-full border rounded p-2 bg-gray-50 outline-none" required></select>
+                                <button type="button" onclick="promptNewCategory()" class="bg-indigo-100 text-indigo-600 px-2 rounded font-bold text-xs whitespace-nowrap hover:bg-indigo-200">+ Nueva</button>
+                            </div>
                         </div>
                         <div><label class="block text-xs font-bold mb-1">Caja/Ubic</label><input type="text"
                                 id="prod-box" class="w-full border rounded p-2 bg-gray-50 outline-none"></div>
@@ -1125,15 +1128,31 @@
                 localStorage.setItem('capsuleSettings', JSON.stringify(s));
             }
         }
+        function promptNewCategory() {
+            const newCat = prompt("Ingrese la nueva categoría:");
+            if (newCat && newCat.trim() !== '') {
+                const titleCat = newCat.trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                saveCategoryIfNew(titleCat);
+                updateCategoryDatalist();
+                const sel = document.getElementById('prod-category');
+                if (sel) sel.value = titleCat;
+            }
+        }
+
         function updateCategoryDatalist() {
-            // Combinar categorías guardadas en settings + categorías del inventario actual
             const saved = getSavedCategories();
             const fromInventory = [...new Set(inventory.map(p => p.category).filter(Boolean))];
             const allCats = [...new Set([...saved, ...fromInventory])];
             allCats.sort((a, b) => a.localeCompare(b, 'es'));
-            document.getElementById('category-list').innerHTML = allCats.map(c =>
-                `<option value="${c}">`
-            ).join('');
+            
+            const selectEl = document.getElementById('prod-category');
+            if (selectEl && selectEl.tagName === 'SELECT') {
+                const currentCat = selectEl.value;
+                selectEl.innerHTML = '<option value="" disabled selected>Seleccione una categoría</option>' + allCats.map(c => `<option value="${c}">${c}</option>`).join('');
+                if (currentCat && allCats.includes(currentCat)) {
+                    selectEl.value = currentCat;
+                }
+            }
             
             const filterSelect = document.getElementById('inv-cat-filter');
             if (filterSelect) {
@@ -1153,9 +1172,10 @@
         });
         function editProduct(id) {
             const p = inventory.find(x => x.id === id); if (!p) return;
+            updateCategoryDatalist(); // Poblar select antes de setear el valor
             document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-category').value = p.category; document.getElementById('prod-box').value = p.box || ''; document.getElementById('prod-cost').value = p.cost; document.getElementById('prod-price').value = p.price; document.getElementById('prod-stock').value = p.stock; document.getElementById('prod-desc').value = p.desc || ''; document.getElementById('prod-img1').value = p.img1 || ''; document.getElementById('prod-img2').value = p.img2 || ''; document.getElementById('prod-img3').value = p.img3 || ''; document.getElementById('prod-video').value = p.video || '';
             updateImgPreview('prod-img1'); updateImgPreview('prod-img2'); updateImgPreview('prod-img3');
-            updateVideoPreview(); updateCategoryDatalist();
+            updateVideoPreview(); 
             document.getElementById('product-form-container').classList.remove('hidden'); window.scrollTo(0, 0);
         }
         function deleteProduct(id) { if (confirm('¿Eliminar?')) { inventory = inventory.filter(p => p.id !== id); renderInventory(); syncToCloud(); } }
