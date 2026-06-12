@@ -822,6 +822,47 @@
             if (isAdmin) { renderUsers(); renderCustomers(); }
             changeTab(isAdmin ? 'dashboard' : 'pos');
         }
+        function renderUsers() {
+            const list = document.getElementById('users-list');
+            list.innerHTML = '';
+            usersDB.forEach((u, idx) => {
+                if (u.role === 'admin') return;
+                list.innerHTML += `<div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
+                    <div><span class="font-bold text-gray-700">${u.user}</span><span class="text-xs text-gray-500 ml-2">Vendedor</span></div>
+                    <button type="button" onclick="deleteUser(${idx})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                </div>`;
+            });
+        }
+        function createUser() {
+            const user = document.getElementById('new-user-name').value.trim();
+            const pass = document.getElementById('new-user-pass').value.trim();
+            if (!user || !pass) return alert('Completa ambos campos');
+            if (usersDB.find(u => u.user === user)) return alert('El usuario ya existe');
+            usersDB.push({ user, pass, role: 'seller' });
+            document.getElementById('new-user-name').value = '';
+            document.getElementById('new-user-pass').value = '';
+            renderUsers();
+            syncToCloud();
+        }
+        function deleteUser(idx) {
+            if (confirm('¿Eliminar vendedor?')) {
+                usersDB.splice(idx, 1);
+                renderUsers();
+                syncToCloud();
+            }
+        }
+        function updateAdminCredentials() {
+            const user = document.getElementById('update-admin-user').value.trim();
+            const pass = document.getElementById('update-admin-pass').value.trim();
+            if (!user || !pass) return alert('Completa ambos campos');
+            const admin = usersDB.find(u => u.role === 'admin');
+            if (admin) {
+                admin.user = user;
+                admin.pass = pass;
+                alert('Credenciales de administrador actualizadas.');
+                syncToCloud();
+            }
+        }
 
         // CONFIGURACIONES Y GUARDADO
         function changeTab(tabId) {
