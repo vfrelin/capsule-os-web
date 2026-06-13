@@ -2008,8 +2008,10 @@
             let totalInvCost = 0, totalInvValue = 0;
             inventory.forEach(p => { if (p.stock > 0) { totalInvCost += p.cost * p.stock; totalInvValue += p.price * p.stock; } });
             document.getElementById('dash-total-products').innerText = inventory.length;
-            document.getElementById('dash-inv-cost').innerText = _fmt(totalInvCost, curr);
-            document.getElementById('dash-inv-value').innerText = _fmt(totalInvValue, curr);
+            const invCostEl = document.getElementById('dash-inv-cost');
+            const invValueEl = document.getElementById('dash-inv-value');
+            if (invCostEl) invCostEl.innerText = _fmt(totalInvCost, curr);
+            if (invValueEl) invValueEl.innerText = _fmt(totalInvValue, curr);
 
             // --- Filtrar ventas según rango de fechas ---
             let filteredSales = [...salesHistory];
