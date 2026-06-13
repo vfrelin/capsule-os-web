@@ -832,6 +832,15 @@
                     inventory = cloudData.inventory || []; salesHistory = cloudData.salesHistory || [];
                     usersDB = cloudData.usersDB || [{ user: 'admin', pass: 'admin123', role: 'admin' }];
                     customersDB = cloudData.customersDB || [];
+                    
+                    // --- SAFEGUARD: Resurrección de datos si Render limpió la DB ---
+                    const localInv = JSON.parse(localStorage.getItem('capsuleInventory')) || [];
+                    const localSales = JSON.parse(localStorage.getItem('capsuleSales')) || [];
+                    const localCustomers = JSON.parse(localStorage.getItem('capsuleCustomers')) || [];
+                    if (inventory.length === 0 && localInv.length > 0) inventory = localInv;
+                    if (salesHistory.length === 0 && localSales.length > 0) salesHistory = localSales;
+                    if (customersDB.length === 0 && localCustomers.length > 0) customersDB = localCustomers;
+                    if (inventory.length > 0 && cloudData.inventory?.length === 0) syncToCloud(); // Auto-restaurar la nube
                     if (cloudData.settings && Object.keys(cloudData.settings).length > 0) localStorage.setItem('capsuleSettings', JSON.stringify(cloudData.settings));
                     statusLabel.innerText = "Sincronización exitosa.";
                 } else throw new Error("API Falló");
