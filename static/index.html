@@ -1001,11 +1001,7 @@
             }
 
             if (sortMode === 'recent') {
-                prods.sort((a, b) => {
-                    const idA = parseInt(a.id.replace('PRD-', '')) || 0;
-                    const idB = parseInt(b.id.replace('PRD-', '')) || 0;
-                    return idB - idA;
-                });
+                prods.sort((a, b) => inventory.indexOf(b) - inventory.indexOf(a));
             } else if (sortMode === 'stock-desc') {
                 prods.sort((a, b) => b.stock - a.stock);
             } else if (sortMode === 'sales-desc') {
