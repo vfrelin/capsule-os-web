@@ -263,6 +263,14 @@
                 inventory = [];
                 settings = {};
             }
+
+            // Deep linking por categoría
+            const urlParams = new URLSearchParams(window.location.search);
+            const catParam = urlParams.get('cat');
+            if (catParam) {
+                currentCategory = catParam;
+            }
+
             applyStoreInfo();
             renderCategories();
             renderCatalog();
@@ -338,6 +346,12 @@
             currentCategory = cat;
             renderCategories();
             renderCatalog();
+            
+            // Actualizar URL
+            const newUrl = new URL(window.location);
+            if (cat === 'Todos') newUrl.searchParams.delete('cat');
+            else newUrl.searchParams.set('cat', cat);
+            window.history.pushState({}, '', newUrl);
         }
 
         function setCatalogView(view) {
@@ -380,7 +394,7 @@
                             ${p.stock <= 3 ? `<span class="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">Últimas</span>` : ''}
                         </div>
                         <div class="p-3">
-                            <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-wide">${p.category}</span>
+                            <span onclick="event.stopPropagation(); setCategory('${p.category}');" class="text-[9px] font-bold text-indigo-500 uppercase tracking-wide cursor-pointer hover:underline relative z-10">${p.category}</span>
                             <h3 class="font-bold text-sm leading-snug mt-0.5 line-clamp-2">${p.name}</h3>
                             <p class="text-base font-black text-indigo-600 mt-1.5">${curr} ${parseFloat(p.price).toFixed(2)}</p>
                         </div>
@@ -394,7 +408,7 @@
                             class="w-28 aspect-square object-cover flex-shrink-0"
                             onerror="this.src='https://via.placeholder.com/300'">
                         <div class="p-4 flex flex-col justify-center">
-                            <span class="text-[9px] font-bold text-indigo-500 uppercase">${p.category}</span>
+                            <span onclick="event.stopPropagation(); setCategory('${p.category}');" class="text-[9px] font-bold text-indigo-500 uppercase cursor-pointer hover:underline relative z-10">${p.category}</span>
                             <h3 class="font-bold text-sm line-clamp-2 mt-0.5">${p.name}</h3>
                             <p class="text-sm text-gray-500 line-clamp-1 mt-0.5">${p.desc || ''}</p>
                             <p class="text-base font-black text-indigo-600 mt-1">${curr} ${parseFloat(p.price).toFixed(2)}</p>
@@ -469,7 +483,7 @@
                     </button>
                 </div>
                 <div class="p-5">
-                    <span class="text-xs font-bold text-indigo-500 uppercase tracking-wide">${p.category}</span>
+                    <span onclick="closeProductModal(); setCategory('${p.category}'); window.scrollTo({top:0, behavior:'smooth'});" class="text-xs font-bold text-indigo-500 uppercase tracking-wide cursor-pointer hover:underline">${p.category}</span>
                     <h2 class="text-xl font-black mt-1 leading-tight">${p.name}</h2>
                     <p class="text-3xl font-black text-indigo-600 mt-2">${curr} ${parseFloat(p.price).toFixed(2)}</p>
                     ${p.stock <= 5 ? `<span class="inline-block bg-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full mt-2">¡Solo ${p.stock} en stock!</span>` : `<span class="inline-block bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full mt-2">✓ Disponible</span>`}
@@ -480,6 +494,26 @@
                         <i class="fa-solid fa-share-from-square"></i> Compartir este producto
                     </button>
                 </div>`;
+
+            // Agregar sección de productos relacionados
+            const related = inventory.filter(x => x.category === p.category && x.id !== p.id && x.stock > 0 && x.isPublic !== false).slice(0, 3);
+            if (related.length > 0) {
+                const relatedHtml = `
+                <div class="mt-6 mx-5 mb-5 pt-6 border-t border-gray-100">
+                    <h3 class="text-sm font-black text-gray-800 mb-4">También te puede interesar</h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        ${related.map(r => `
+                        <div class="cursor-pointer bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition group" onclick="openProductModal('${r.id}')">
+                            <img src="${r.img1 || 'https://via.placeholder.com/150'}" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/150'">
+                            <div class="p-2">
+                                <h4 class="text-[10px] font-bold text-gray-800 line-clamp-2 leading-snug">${r.name}</h4>
+                                <p class="text-xs font-black text-indigo-600 mt-1">${curr} ${parseFloat(r.price).toFixed(2)}</p>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+                </div>`;
+                document.getElementById('product-modal-content').innerHTML += relatedHtml;
+            }
 
             const waBtn = document.getElementById('modal-wa-btn');
             if (settings.whatsapp) {
