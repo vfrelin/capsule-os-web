@@ -141,7 +141,7 @@
                 </div>
 
                 <!-- FILA 1: KPIs Principales (Premium Dark Cards) -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-6">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-6">
                     <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-4 rounded-xl border border-gray-700 shadow-lg relative overflow-hidden group">
                         <div class="absolute -right-2 -top-2 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="fa-solid fa-box-open text-7xl text-white"></i></div>
                         <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider relative z-10">Total Productos</p>
@@ -151,6 +151,11 @@
                         <div class="absolute -right-2 -top-2 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="fa-solid fa-wallet text-7xl text-blue-500"></i></div>
                         <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider relative z-10">Costo Inv.</p>
                         <h3 id="dash-inv-cost" class="text-xl md:text-2xl font-black mt-2 text-blue-400 relative z-10">L 0.00</h3>
+                    </div>
+                    <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-4 rounded-xl border border-gray-700 shadow-lg relative overflow-hidden group">
+                        <div class="absolute -right-2 -top-2 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="fa-solid fa-tags text-7xl text-purple-500"></i></div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider relative z-10">Valor Inv. (Venta)</p>
+                        <h3 id="dash-inv-value" class="text-xl md:text-2xl font-black mt-2 text-purple-400 relative z-10">L 0.00</h3>
                     </div>
                     <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-4 rounded-xl border border-gray-700 shadow-lg relative overflow-hidden group">
                         <div class="absolute -right-2 -top-2 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="fa-solid fa-chart-line text-7xl text-emerald-500"></i></div>
@@ -837,9 +842,11 @@
                     const localInv = JSON.parse(localStorage.getItem('capsuleInventory')) || [];
                     const localSales = JSON.parse(localStorage.getItem('capsuleSales')) || [];
                     const localCustomers = JSON.parse(localStorage.getItem('capsuleCustomers')) || [];
+                    const localUsers = JSON.parse(localStorage.getItem('capsuleUsers')) || [];
                     if (inventory.length === 0 && localInv.length > 0) inventory = localInv;
                     if (salesHistory.length === 0 && localSales.length > 0) salesHistory = localSales;
                     if (customersDB.length === 0 && localCustomers.length > 0) customersDB = localCustomers;
+                    if (usersDB.length <= 1 && localUsers.length > 1) usersDB = localUsers;
                     if (inventory.length > 0 && cloudData.inventory?.length === 0) syncToCloud(); // Auto-restaurar la nube
                     if (cloudData.settings && Object.keys(cloudData.settings).length > 0) localStorage.setItem('capsuleSettings', JSON.stringify(cloudData.settings));
                     statusLabel.innerText = "Sincronización exitosa.";
@@ -994,7 +1001,11 @@
             }
 
             if (sortMode === 'recent') {
-                prods.reverse();
+                prods.sort((a, b) => {
+                    const idA = parseInt(a.id.replace('PRD-', '')) || 0;
+                    const idB = parseInt(b.id.replace('PRD-', '')) || 0;
+                    return idB - idA;
+                });
             } else if (sortMode === 'stock-desc') {
                 prods.sort((a, b) => b.stock - a.stock);
             } else if (sortMode === 'sales-desc') {
