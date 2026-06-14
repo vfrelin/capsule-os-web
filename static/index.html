@@ -998,6 +998,7 @@
             }
             if (filterCat !== 'Todos') {
                 prods = prods.filter(p => p.category === filterCat);
+            }
             if (sortMode === 'recent') {
                 prods.sort((a, b) => {
                     const timeB = b.lastUpdated || 0;
