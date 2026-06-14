@@ -1001,7 +1001,12 @@
             }
 
             if (sortMode === 'recent') {
-                prods.sort((a, b) => inventory.indexOf(b) - inventory.indexOf(a));
+                prods.sort((a, b) => {
+                    const timeB = b.lastUpdated || 0;
+                    const timeA = a.lastUpdated || 0;
+                    if (timeB !== timeA) return timeB - timeA;
+                    return inventory.indexOf(b) - inventory.indexOf(a);
+                });
             } else if (sortMode === 'stock-desc') {
                 prods.sort((a, b) => b.stock - a.stock);
             } else if (sortMode === 'sales-desc') {
@@ -1036,8 +1041,8 @@
         document.getElementById('product-form').addEventListener('submit', function (e) {
             e.preventDefault();
             const id = document.getElementById('prod-id').value || 'PRD-' + Date.now();
-            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value };
-            const idx = inventory.findIndex(p => p.id === id); if (idx > -1) inventory[idx] = np; else inventory.push(np);
+            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now() };
+            const idx = inventory.findIndex(p => p.id === id); if (idx > -1) { inventory.splice(idx, 1); inventory.push(np); } else inventory.push(np);
             // Guardar categoría nueva en la lista persistente
             saveCategoryIfNew(np.category);
             toggleProductForm(); renderInventory(); updateCategoryDatalist(); syncToCloud();
