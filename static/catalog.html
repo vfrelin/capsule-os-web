@@ -455,6 +455,10 @@
 
             // Actualizar hash en la URL sin recargar la página
             history.replaceState(null, '', `#producto-${id}`);
+            
+            // Subir el scroll al principio del modal
+            const modalContent = document.getElementById('product-modal-content');
+            if (modalContent) modalContent.scrollTop = 0;
 
             const imgs = [p.img1, p.img2, p.img3].filter(Boolean);
             const carouselImgs = imgs.map(src => `<img src="${src}" class="min-w-full aspect-square object-cover snap-center" onerror="this.src='https://via.placeholder.com/400'">`).join('');
