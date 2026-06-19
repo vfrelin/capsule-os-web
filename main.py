@@ -90,6 +90,11 @@ def save_data(data: AppData):
         logger.error(f"Error guardando tienda: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Endpoint super rápido para UptimeRobot (evita spin down en Render)
+@app.get("/ping")
+def ping():
+    return {"ping": "pong"}
+
 # Endpoint de diagnóstico para verificar estado de MongoDB
 @app.get("/api/health")
 def health_check():
