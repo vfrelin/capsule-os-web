@@ -169,7 +169,7 @@ def generate_and_send_daily_report():
                 prod_counter[pid]["qty"] += item.get("qty", 0)
                 prod_counter[pid]["revenue"] += item.get("price", 0) * item.get("qty", 0)
                 
-        top_prods = sorted(prod_counter.values(), key=lambda x: x["qty"], reverse=True)[:10]
+        all_prods = sorted(prod_counter.values(), key=lambda x: x["qty"], reverse=True)
         
         date_str = now.strftime("%Y-%m-%d")
         curr = store.get("settings", {}).get("currency", "L")
@@ -193,10 +193,10 @@ def generate_and_send_daily_report():
             <div class="kpi"><h3>Vendido: {curr} {total_vendido:,.2f}</h3></div>
             <div class="kpi green"><h3>Ganancia: {curr} {total_ganancia:,.2f}</h3></div>
         </div>
-        <h2>Top Productos</h2>
+        <h2>Productos Vendidos Hoy</h2>
         <table><thead><tr><th>Producto</th><th>Cant.</th><th>Ingresos</th></tr></thead><tbody>
         """
-        for p in top_prods:
+        for p in all_prods:
             html += f"<tr><td>{p['name']}</td><td>{p['qty']}</td><td>{curr} {p['revenue']:,.2f}</td></tr>"
             
         html += """</tbody></table>
