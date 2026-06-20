@@ -4,3 +4,4 @@ pymongo
 pydantic
 python-multipart
 apscheduler
+requests

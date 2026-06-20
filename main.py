@@ -5,8 +5,7 @@ from pydantic import BaseModel
 from pymongo import MongoClient
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
-import smtplib
-from email.message import EmailMessage
+import requests
 from datetime import datetime
 import os, logging
 
@@ -134,12 +133,11 @@ def generate_and_send_daily_report():
         logger.warning("MongoDB no disponible. No se puede generar informe.")
         return
         
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASSWORD")
+    google_script_url = os.getenv("GOOGLE_SCRIPT_URL")
     emails_str = os.getenv("REPORT_EMAILS")
     
-    if not all([smtp_user, smtp_pass, emails_str]):
-        logger.warning("Credenciales SMTP o REPORT_EMAILS no configuradas. Informe omitido.")
+    if not all([google_script_url, emails_str]):
+        logger.warning("Falta GOOGLE_SCRIPT_URL o REPORT_EMAILS. Informe omitido.")
         return
 
     try:
@@ -211,27 +209,18 @@ def generate_and_send_daily_report():
         <p style="margin-top:30px;font-size:10px;color:#9ca3af;text-align:center;">Generado automáticamente por Capsule OS</p>
         </body></html>"""
         
-        msg = EmailMessage()
-        msg["Subject"] = f"📊 Informe de Ventas Diario - {date_str}"
-        msg["From"] = smtp_user
-        msg["To"] = [e.strip() for e in emails_str.split(",")]
-        msg.set_content(f"Hola, adjunto el informe de ventas del día {date_str}. Por favor revisa el contenido HTML.")
-        msg.add_alternative(html, subtype="html")
+        payload = {
+            "to": emails_str,
+            "subject": f"📊 Informe Diario de Ventas - {date_str}",
+            "html": html
+        }
         
-        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-        smtp_port = int(os.getenv("SMTP_PORT", 465))
+        response = requests.post(google_script_url, json=payload, timeout=15)
         
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port) as smtp:
-                smtp.login(smtp_user, smtp_pass)
-                smtp.send_message(msg)
+        if response.status_code == 200:
+            logger.info(f"✅ Informe diario enviado exitosamente a {emails_str} vía Google Apps Script")
         else:
-            with smtplib.SMTP(smtp_host, smtp_port) as smtp:
-                smtp.starttls()
-                smtp.login(smtp_user, smtp_pass)
-                smtp.send_message(msg)
-                
-        logger.info(f"✅ Informe diario enviado exitosamente a {emails_str}")
+            logger.error(f"❌ Error al enviar informe vía Webhook: {response.status_code} - {response.text}")
         
     except Exception as e:
         logger.error(f"❌ Error al generar/enviar informe diario: {e}")
