@@ -142,7 +142,6 @@ def generate_and_send_daily_report():
 
     try:
         now = datetime.now()
-        start_of_day = datetime(now.year, now.month, now.day).isoformat()
         
         store = collection.find_one({"_id": "main_store"})
         if not store or "salesHistory" not in store:
@@ -153,8 +152,20 @@ def generate_and_send_daily_report():
         
         today_sales = []
         for s in sales:
-            if s.get("status") != "ANULADA" and s.get("date", "") >= start_of_day:
-                today_sales.append(s)
+            if s.get("status") == "ANULADA":
+                continue
+                
+            d_str = s.get("date", "")
+            if d_str.endswith("Z"):
+                d_str = d_str[:-1] + "+00:00"
+                
+            try:
+                dt_utc = datetime.fromisoformat(d_str)
+                dt_local = dt_utc.astimezone()
+                if dt_local.date() == now.date():
+                    today_sales.append(s)
+            except Exception:
+                pass
                 
         total_vendido = sum(s.get("total", 0) for s in today_sales)
         total_ganancia = sum(s.get("profit", 0) for s in today_sales)
