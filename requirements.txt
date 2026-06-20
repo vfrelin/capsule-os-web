@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-pymongo[srv]
+pymongo
 pydantic
 python-multipart
 apscheduler
