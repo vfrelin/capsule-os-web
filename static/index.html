@@ -304,14 +304,10 @@
                         <div class="flex gap-2"><input type="text" id="pos-phone" placeholder="Teléfono"
                                 class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none"><input type="text"
                                 id="pos-rtn" placeholder="RTN / ID"
-                                class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none"></div><select
-                            id="pos-shipping" onchange="updatePOSUI()"
-                            class="w-full border rounded-lg p-2 text-sm bg-gray-50 outline-none">
-                            <option value="0">0.00 - Sin Envío / Retiro</option>
-                            <option value="50">50.00 - Encomienda Local</option>
-                            <option value="100">100.00 - Envío Nacional</option>
-                            <option value="150">150.00 - Especial</option>
-                        </select><input type="text" id="pos-note" placeholder="Nota adicional"
+                                class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none"></div><input
+                            type="number" id="pos-shipping" oninput="updatePOSUI()"
+                            placeholder="Costo de Envío Manual" min="0" step="0.01"
+                            class="w-full border rounded-lg p-2 text-sm bg-gray-50 outline-none"><input type="text" id="pos-note" placeholder="Nota adicional"
                             class="w-full border rounded-lg p-2 text-sm bg-gray-50 outline-none">
                     </div>
                     <div id="pos-cart-items"
@@ -824,6 +820,15 @@
     </div>
 
     <script>
+        // Fix common typo in address
+        try {
+            let s = JSON.parse(localStorage.getItem('capsuleSettings'));
+            if (s && s.address && s.address.includes('11-A 12enida')) {
+                s.address = s.address.replace('11-A 12enida', '11 Avenida');
+                localStorage.setItem('capsuleSettings', JSON.stringify(s));
+            }
+        } catch(e) {}
+
         // GLOBALS & CLOUD SYNC LOGIC
         const STORE_ID = "main_store";
         let inventory = []; let salesHistory = []; let customersDB = [];
@@ -2193,7 +2198,8 @@
             document.getElementById('dash-today').innerText = _fmt(_sumSales(_salesInRange(todayStart, todayEnd)), curr);
             document.getElementById('dash-yesterday').innerText = _fmt(_sumSales(_salesInRange(yestStart, yestEnd)), curr);
             document.getElementById('dash-month').innerText = _fmt(_sumSales(_salesInRange(monthStart, todayEnd)), curr);
-            document.getElementById('dash-year').innerText = _fmt(_sumSales(_salesInRange(yearStart, yearEnd)), curr);
+            const dashYear = document.getElementById('dash-year');
+            if (dashYear) dashYear.innerText = _fmt(_sumSales(_salesInRange(yearStart, yearEnd)), curr);
 
             // --- Top Productos ---
             const topProductsList = document.getElementById('dash-top-products');
