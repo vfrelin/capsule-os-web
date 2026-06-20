@@ -96,6 +96,7 @@ def save_data(data: AppData):
 
 # Endpoint super rápido para UptimeRobot (evita spin down en Render)
 @app.get("/ping")
+@app.head("/ping")
 def ping():
     return {"ping": "pong"}
 
