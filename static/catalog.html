@@ -6,6 +6,17 @@
     <meta name="theme-color" content="#4f46e5">
     <meta name="description" content="Catálogo de productos - Explora nuestra tienda en línea">
     <title id="page-title">Catálogo Público</title>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9J51PXK8EC"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9J51PXK8EC');
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -453,6 +464,15 @@
             currentModalQty = 1;
             const curr = settings.currency || 'L';
 
+            // GA4 Event: view_item
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'view_item', {
+                    currency: curr,
+                    value: p.price,
+                    items: [{ item_id: p.id, item_name: p.name, item_category: p.category, price: p.price }]
+                });
+            }
+
             // Actualizar hash en la URL sin recargar la página
             history.replaceState(null, '', `#producto-${id}`);
             
@@ -589,6 +609,16 @@
             const ex = cart.find(i => i.id === p.id);
             if (ex) ex.qty += currentModalQty;
             else cart.push({ ...p, qty: currentModalQty });
+
+            // GA4 Event: add_to_cart
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'add_to_cart', {
+                    currency: settings.currency || 'L',
+                    value: p.price * currentModalQty,
+                    items: [{ item_id: p.id, item_name: p.name, item_category: p.category, price: p.price, quantity: currentModalQty }]
+                });
+            }
+
             updateCartUI();
             closeProductModal();
             // Quick toast
@@ -663,6 +693,20 @@
                 msg += `• ${i.qty}x ${i.name} — ${curr} ${subtotal.toFixed(2)}\n`;
             });
             msg += `\n💰 *Total: ${curr} ${total.toFixed(2)}*`;
+
+            // GA4 Event: begin_checkout
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'begin_checkout', {
+                    currency: curr,
+                    value: total,
+                    items: cart.map(item => ({ item_id: item.id, item_name: item.name, item_category: item.category, price: item.price, quantity: item.qty }))
+                });
+                gtag('event', 'generate_lead', {
+                    currency: curr,
+                    value: total
+                });
+            }
+
             window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
