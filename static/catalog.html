@@ -17,6 +17,24 @@
       gtag('config', 'G-9J51PXXG8C');
     </script>
 
+    <!-- Facebook Pixel Code -->
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1706500354108611');
+    fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=1706500354108611&ev=PageView&noscript=1"
+    /></noscript>
+    <!-- End Facebook Pixel Code -->
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -473,6 +491,18 @@
                 });
             }
 
+            // Meta Pixel Event: ViewContent
+            if (typeof fbq !== 'undefined') {
+                fbq('track', 'ViewContent', {
+                    content_ids: [p.id],
+                    content_name: p.name,
+                    content_category: p.category,
+                    currency: curr,
+                    value: p.price,
+                    content_type: 'product'
+                });
+            }
+
             // Actualizar hash en la URL sin recargar la página
             history.replaceState(null, '', `#producto-${id}`);
             
@@ -619,6 +649,17 @@
                 });
             }
 
+            // Meta Pixel Event: AddToCart
+            if (typeof fbq !== 'undefined') {
+                fbq('track', 'AddToCart', {
+                    content_ids: [p.id],
+                    content_name: p.name,
+                    currency: settings.currency || 'L',
+                    value: p.price * currentModalQty,
+                    content_type: 'product'
+                });
+            }
+
             updateCartUI();
             closeProductModal();
             // Quick toast
@@ -702,6 +743,21 @@
                     items: cart.map(item => ({ item_id: item.id, item_name: item.name, item_category: item.category, price: item.price, quantity: item.qty }))
                 });
                 gtag('event', 'generate_lead', {
+                    currency: curr,
+                    value: total
+                });
+            }
+
+            // Meta Pixel Event: InitiateCheckout & Lead
+            if (typeof fbq !== 'undefined') {
+                const contentIds = cart.map(item => item.id);
+                fbq('track', 'InitiateCheckout', {
+                    content_ids: contentIds,
+                    currency: curr,
+                    value: total,
+                    num_items: cart.reduce((acc, item) => acc + item.qty, 0)
+                });
+                fbq('track', 'Lead', {
                     currency: curr,
                     value: total
                 });
