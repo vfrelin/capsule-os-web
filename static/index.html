@@ -304,10 +304,16 @@
                         <div class="flex gap-2"><input type="text" id="pos-phone" placeholder="Teléfono"
                                 class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none"><input type="text"
                                 id="pos-rtn" placeholder="RTN / ID"
-                                class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none"></div><input
-                            type="number" id="pos-shipping" oninput="updatePOSUI()"
-                            placeholder="Costo de Envío Manual" min="0" step="0.01"
-                            class="w-full border rounded-lg p-2 text-sm bg-gray-50 outline-none"><input type="text" id="pos-note" placeholder="Nota adicional"
+                                class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none"></div>
+                        <div class="flex gap-2">
+                            <input type="number" id="pos-shipping" oninput="updatePOSUI()"
+                                placeholder="Envío Manual" min="0" step="0.01"
+                                class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none">
+                            <input type="number" id="pos-discount" oninput="updatePOSUI()"
+                                placeholder="Descuento" min="0" step="0.01"
+                                class="w-1/2 border rounded-lg p-2 text-sm bg-gray-50 outline-none">
+                        </div>
+                        <input type="text" id="pos-note" placeholder="Nota adicional"
                             class="w-full border rounded-lg p-2 text-sm bg-gray-50 outline-none">
                     </div>
                     <div id="pos-cart-items"
@@ -318,6 +324,9 @@
                         </div>
                         <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
                             <span>Envío</span><span id="pos-shipping-val">L 0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs text-red-400 mb-2">
+                            <span>Descuento</span><span id="pos-discount-val">L 0.00</span>
                         </div>
                         <div class="flex justify-between items-center mb-4"><span
                                 class="font-bold text-gray-800">Total</span><span id="pos-total"
@@ -823,9 +832,13 @@
         // Fix common typo in address
         try {
             let s = JSON.parse(localStorage.getItem('capsuleSettings'));
-            if (s && s.address && s.address.includes('11-A 12enida')) {
-                s.address = s.address.replace('11-A 12enida', '11 Avenida');
-                localStorage.setItem('capsuleSettings', JSON.stringify(s));
+            if (s && s.address) {
+                if (s.address.includes('11-A 12enida') || s.address.includes('11 Avenida') || s.address.includes('11 y 12 Avenida')) {
+                    s.address = s.address.replace(/11-a 12enida/gi, '11 y 12 Avenidas');
+                    s.address = s.address.replace(/11 Avenida/gi, '11 y 12 Avenidas');
+                    s.address = s.address.replace(/11 y 12 Avenida/gi, '11 y 12 Avenidas');
+                    localStorage.setItem('capsuleSettings', JSON.stringify(s));
+                }
             }
         } catch(e) {}
 
@@ -1737,13 +1750,14 @@
             const c = document.getElementById('pos-cart-items'); c.innerHTML = ''; let sub = 0;
             posCart.forEach((i, idx) => { sub += i.price * i.qty; c.innerHTML += `<div class="flex justify-between p-2 bg-white border rounded"><p class="text-xs w-1/2 line-clamp-1">${i.name}</p><div class="flex gap-2 items-center"><button onclick="changePOSQty(${idx},-1)" class="px-2 font-bold">-</button><span class="text-xs">${i.qty}</span><button onclick="changePOSQty(${idx},1)" class="px-2 font-bold">+</button></div></div>`; });
             const ship = parseFloat(document.getElementById('pos-shipping').value) || 0;
-            document.getElementById('pos-subtotal').innerText = sub.toFixed(2); document.getElementById('pos-shipping-val').innerText = ship.toFixed(2); document.getElementById('pos-total').innerText = (sub + ship).toFixed(2);
+            const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+            document.getElementById('pos-subtotal').innerText = sub.toFixed(2); document.getElementById('pos-shipping-val').innerText = ship.toFixed(2); document.getElementById('pos-discount-val').innerText = '-' + discount.toFixed(2); document.getElementById('pos-total').innerText = Math.max(0, sub + ship - discount).toFixed(2);
         }
         function clearPOSCart() {
             posCart = [];
             document.getElementById('pos-customer').value = ''; document.getElementById('pos-phone').value = '';
             document.getElementById('pos-rtn').value = ''; document.getElementById('pos-note').value = '';
-            document.getElementById('pos-shipping').value = '0'; updatePOSUI();
+            document.getElementById('pos-shipping').value = '0'; document.getElementById('pos-discount').value = ''; updatePOSUI();
         }
 
         // FACTURACIÓN, AUTO-GUARDADO DE CLIENTES, PDF TÉRMICO
@@ -1767,10 +1781,12 @@
                 itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px;"><span><b style="color:#4f46e5;">${pi.qty}x</b> ${pi.name}</span><span>${s.currency}${(pi.price * pi.qty).toFixed(2)}</span></div>`;
             });
 
-            const ship = parseFloat(document.getElementById('pos-shipping').value) || 0; const total = sub + ship;
+            const ship = parseFloat(document.getElementById('pos-shipping').value) || 0; 
+            const discount = parseFloat(document.getElementById('pos-discount').value) || 0; 
+            const total = Math.max(0, sub + ship - discount);
             const saleId = 'FCT-' + Date.now().toString().slice(-6);
             const dateStr = new Date().toLocaleString();
-            salesHistory.push({ id: saleId, date: new Date().toISOString(), customer: custName, items: [...posCart], subtotal: sub, total: total, profit: sub - cost, shipping: ship });
+            salesHistory.push({ id: saleId, date: new Date().toISOString(), customer: custName, items: [...posCart], subtotal: sub, total: total, profit: sub - cost - discount, shipping: ship, discount: discount });
 
             document.getElementById('receipt-content').innerHTML = `
                 <div style="font-family:Arial,sans-serif; color:#1f2937;">
@@ -1794,6 +1810,7 @@
                     <div style="border-bottom:1px dashed #ccc; margin-top:5px; margin-bottom:5px;"></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px;"><span>SUBTOTAL:</span><span>${s.currency}${sub.toFixed(2)}</span></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px;"><span>ENVIO:</span><span>${s.currency}${ship.toFixed(2)}</span></div>
+                    ${discount > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px; color:#ef4444;"><span>DESCUENTO:</span><span>-${s.currency}${discount.toFixed(2)}</span></div>` : ''}
                     <div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; background:#f0fdf4; padding:6px; border-radius:6px; color:#059669;"><span>TOTAL A PAGAR:</span><span>${s.currency}${total.toFixed(2)}</span></div>
                     <p style="text-align:center; margin-top:15px; font-style:italic; font-size:12px; font-weight:bold; color:#4f46e5;">¡GRACIAS POR SU COMPRA!</p>
                     <p style="text-align:center; margin-top:5px; font-size:10px; color:#4b5563; border-top:1px dashed #ccc; padding-top:5px;">Garantía de 30 días por desperfectos de fábrica, válida únicamente presentando esta factura.</p>
@@ -1811,6 +1828,7 @@
             const custRtn = document.getElementById('pos-rtn').value || '';
             const custNote = document.getElementById('pos-note').value || '';
             const ship = parseFloat(document.getElementById('pos-shipping').value) || 0;
+            const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
             let sub = 0; let rows = '';
 
             posCart.forEach(i => {
@@ -1822,7 +1840,7 @@
                     <td style="padding:8px 10px; border-bottom:1px solid #e5e7eb; text-align:right; font-weight:bold;">${s.currency}${(i.price * i.qty).toFixed(2)}</td>
                 </tr>`;
             });
-            const total = sub + ship;
+            const total = Math.max(0, sub + ship - discount);
             const quoteId = 'COT-' + Date.now().toString().slice(-6);
 
             document.getElementById('quote-content').innerHTML = `
@@ -1871,6 +1889,10 @@
                         ${ship > 0 ? `<div style="display:flex; justify-content:flex-end; gap:24px; font-size:13px; margin-bottom:6px;">
                             <span style="color:#6b7280;">Envío:</span>
                             <span style="font-weight:700; min-width:80px; text-align:right;">${s.currency}${ship.toFixed(2)}</span>
+                        </div>` : ''}
+                        ${discount > 0 ? `<div style="display:flex; justify-content:flex-end; gap:24px; font-size:13px; margin-bottom:6px; color:#ef4444;">
+                            <span>Descuento:</span>
+                            <span style="font-weight:700; min-width:80px; text-align:right;">-${s.currency}${discount.toFixed(2)}</span>
                         </div>` : ''}
                         <div style="display:flex; justify-content:flex-end; gap:24px; background:#f0fdf4; padding:10px 16px; border-radius:8px; margin-top:8px;">
                             <span style="font-size:16px; font-weight:900; color:#374151;">TOTAL ESTIMADO:</span>
@@ -2488,6 +2510,7 @@
                     <div style="border-bottom:1px dashed #ccc; margin-top:5px; margin-bottom:5px;"></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px;"><span>SUBTOTAL:</span><span>${s.currency}${sale.subtotal.toFixed(2)}</span></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px;"><span>ENVIO:</span><span>${s.currency}${(sale.shipping || 0).toFixed(2)}</span></div>
+                    ${(sale.discount || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:12px; color:#ef4444;"><span>DESCUENTO:</span><span>-${s.currency}${(sale.discount || 0).toFixed(2)}</span></div>` : ''}
                     <div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; background:#f0fdf4; padding:6px; border-radius:6px; color:#059669;"><span>TOTAL A PAGAR:</span><span>${s.currency}${sale.total.toFixed(2)}</span></div>
                     <p style="text-align:center; margin-top:15px; font-style:italic; font-size:12px; font-weight:bold; color:#4f46e5;">¡Copia de Recibo Original!</p>
                 </div>
