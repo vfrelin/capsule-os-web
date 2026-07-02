@@ -129,8 +129,17 @@ def serve_public_catalog(request: Request, store_id: str, product_id: str = None
         store = collection.find_one({"_id": store_id}) or {}
         clean_mongo_doc(store)
         
-    settings = store.get("settings", {"name": "Catálogo", "about": "Explora nuestra tienda"})
-    inventory = [p for p in store.get("inventory", []) if p.get("isPublic", True) is not False and p.get("stock", 0) > 0]
+    settings = store.get("settings") or {"name": "Catálogo", "about": "Explora nuestra tienda"}
+    raw_inventory = store.get("inventory") or []
+    
+    inventory = []
+    for p in raw_inventory:
+        if isinstance(p, dict) and p.get("isPublic", True) is not False:
+            try:
+                if int(p.get("stock", 0)) > 0:
+                    inventory.append(p)
+            except (ValueError, TypeError):
+                pass
     
     product = next((p for p in inventory if str(p.get("id")) == str(product_id)), None) if product_id else None
     
