@@ -978,9 +978,10 @@
             
             // Format text: convert newlines to <br>, bold text to <b>, and markdown links to <a> tags
             let formattedText = text
-                .replace(/\\n/g, '<br>')
-                .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')
-                .replace(/\\[(.*?)\\]\\((.*?)\\)/g, '<a href="$2" class="underline font-bold hover:text-green-800 transition">$1</a>');
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="underline font-bold hover:text-green-800 transition" target="_blank">$1</a>')
+                .replace(/(^|<br>)\*\s/g, '$1• ');
             
             let html = '';
             if (sender === 'user') {
