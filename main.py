@@ -143,14 +143,18 @@ def serve_public_catalog(request: Request, store_id: str, product_id: str = None
     
     product = next((p for p in inventory if str(p.get("id")) == str(product_id)), None) if product_id else None
     
-    return templates.TemplateResponse("catalog.html", {
-        "request": request, 
-        "store_id": store_id, 
-        "settings": settings,
-        "inventory": inventory,
-        "product": product,
-        "base_url": "https://capsule-os-web.onrender.com"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="catalog.html",
+        context={
+            "request": request, 
+            "store_id": store_id, 
+            "settings": settings,
+            "inventory": inventory,
+            "product": product,
+            "base_url": "https://capsule-os-web.onrender.com"
+        }
+    )
 
 @app.get("/catalog")
 def serve_catalog_default(request: Request):
