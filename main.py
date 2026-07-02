@@ -211,7 +211,7 @@ def chat_with_bot(store_id: str, req: ChatRequest):
     
     try:
         model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
+            model_name='gemini-2.5-flash',
             system_instruction=system_instruction
         )
         
