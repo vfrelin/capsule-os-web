@@ -236,10 +236,10 @@
 
     <!-- ========== FLOATING CART BUTTON ========== -->
     <button onclick="toggleCart()"
-        class="fixed bottom-6 right-4 z-40 bg-indigo-600 text-white p-4 rounded-2xl shadow-2xl flex hover:bg-indigo-700 active:scale-95 transition">
+        class="fixed top-20 right-4 z-40 bg-indigo-600 text-white p-3 rounded-2xl shadow-2xl flex hover:bg-indigo-700 active:scale-95 transition backdrop-blur-md bg-opacity-90">
         <i class="fa-solid fa-shopping-bag text-xl"></i>
         <span id="cart-badge"
-            class="absolute -top-2 -right-2 bg-red-500 text-xs font-black px-2 py-1 rounded-full border-2 border-white min-w-[22px] text-center">0</span>
+            class="absolute -bottom-2 -left-2 bg-red-500 text-xs font-black px-2 py-1 rounded-full border-2 border-white min-w-[22px] text-center">0</span>
     </button>
 
     <!-- ========== PRODUCT DETAIL MODAL ========== -->
@@ -277,7 +277,7 @@
     <div id="chatbot-container" class="fixed bottom-24 right-4 z-50 flex flex-col items-end hidden">
         <div class="bg-white/95 backdrop-blur-md w-[320px] h-[450px] sm:w-[350px] sm:h-[500px] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-white flex flex-col overflow-hidden transition-transform transform origin-bottom-right scale-0" id="chatbot-window">
             <!-- Header -->
-            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between items-center shadow-md z-10">
+            <div class="bg-gradient-to-r from-green-500 to-green-600 p-4 text-white flex justify-between items-center shadow-md z-10">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
                         <i class="fa-solid fa-robot text-xl"></i>
@@ -309,13 +309,13 @@
             <!-- Input area -->
             <div class="p-3 bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.03)] pb-safe z-10">
                 <form id="chatbot-form" onsubmit="sendChatMessage(event)" class="flex items-center gap-2">
-                    <input type="text" id="chatbot-input" placeholder="Escribe un mensaje..." class="flex-grow bg-gray-100 border border-transparent px-4 py-3 rounded-2xl text-sm outline-none focus:border-indigo-300 focus:bg-white transition" autocomplete="off">
-                    <button type="submit" class="bg-indigo-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition flex-shrink-0 shadow-md">
+                    <input type="text" id="chatbot-input" placeholder="Escribe un mensaje..." class="flex-grow bg-gray-100 border border-transparent px-4 py-3 rounded-2xl text-sm outline-none focus:border-green-300 focus:bg-white transition" autocomplete="off">
+                    <button type="submit" class="bg-green-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-green-700 active:scale-95 transition flex-shrink-0 shadow-md">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </form>
                 <div class="text-center mt-2">
-                    <button type="button" onclick="window.open('https://wa.me/' + (settings.whatsapp ? settings.whatsapp.replace(/\D/g, '') : ''), '_blank')" class="text-[10px] font-bold text-green-600 hover:text-green-700 hover:underline transition flex items-center justify-center gap-1 mx-auto">
+                    <button type="button" onclick="window.open('https://wa.me/' + (settings.whatsapp ? settings.whatsapp.replace(/\\D/g, '') : ''), '_blank')" class="text-[10px] font-bold text-green-600 hover:text-green-700 hover:underline transition flex items-center justify-center gap-1 mx-auto">
                         <i class="fa-brands fa-whatsapp"></i> Hablar con un humano
                     </button>
                 </div>
@@ -323,15 +323,21 @@
         </div>
     </div>
     
-    <!-- Chatbot Toggle Button -->
-    <button id="chatbot-toggle-btn" onclick="toggleChatbot()" class="fixed bottom-[88px] right-4 z-40 bg-white text-indigo-600 w-14 h-14 rounded-2xl shadow-[0_10px_25px_rgba(79,70,229,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition border border-indigo-50">
-        <i class="fa-solid fa-message-sparkles text-2xl"></i>
-        <i class="fa-solid fa-robot text-2xl"></i>
-        <span class="absolute -top-1 -right-1 flex h-3 w-3">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-        </span>
-    </button>
+    <!-- Chatbot Toggle Button with Tooltip -->
+    <div id="chatbot-toggle-wrapper" class="fixed bottom-[88px] right-4 z-40 flex items-end gap-3 transition-all duration-300">
+        <div id="chatbot-tooltip" class="bg-white px-4 py-2.5 rounded-2xl shadow-[0_5px_15px_rgba(0,0,0,0.1)] border border-gray-100 text-sm font-bold text-gray-700 relative animate-bounce" style="animation-duration: 2.5s;">
+            ¿Necesitas ayuda? 👋
+            <!-- Triángulo indicador -->
+            <div class="absolute top-1/2 -right-2 -translate-y-1/2 w-4 h-4 bg-white border-r border-t border-gray-100 transform origin-center rotate-45"></div>
+        </div>
+        <button id="chatbot-toggle-btn" onclick="toggleChatbot()" class="bg-white text-green-600 w-14 h-14 rounded-2xl shadow-[0_10px_25px_rgba(34,197,94,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition border border-green-50 relative flex-shrink-0">
+            <i class="fa-solid fa-message-sparkles text-2xl"></i>
+            <span class="absolute -top-1 -right-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+        </button>
+    </div>
 
     <!-- ========== CART SIDEBAR ========== -->
     <div id="cart-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] hidden flex justify-end">
@@ -904,12 +910,14 @@
         function toggleChatbot() {
             const container = document.getElementById('chatbot-container');
             const windowEl = document.getElementById('chatbot-window');
-            const btn = document.getElementById('chatbot-toggle-btn');
+            const btnWrapper = document.getElementById('chatbot-toggle-wrapper');
+            const tooltip = document.getElementById('chatbot-tooltip');
             
             if (container.classList.contains('hidden')) {
                 container.classList.remove('hidden');
-                btn.classList.add('opacity-0', 'scale-90');
-                setTimeout(() => btn.classList.add('hidden'), 200);
+                btnWrapper.classList.add('opacity-0', 'scale-90');
+                if(tooltip) tooltip.style.display = 'none'; // Ocultar tooltip permanente
+                setTimeout(() => btnWrapper.classList.add('hidden'), 200);
                 
                 setTimeout(() => {
                     windowEl.classList.remove('scale-0');
@@ -921,8 +929,8 @@
                 windowEl.classList.add('scale-0');
                 setTimeout(() => {
                     container.classList.add('hidden');
-                    btn.classList.remove('hidden');
-                    setTimeout(() => btn.classList.remove('opacity-0', 'scale-90'), 10);
+                    btnWrapper.classList.remove('hidden');
+                    setTimeout(() => btnWrapper.classList.remove('opacity-0', 'scale-90'), 10);
                 }, 300);
             }
         }
@@ -973,7 +981,7 @@
             
             let html = '';
             if (sender === 'user') {
-                html = `<div class="self-end bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-3.5 rounded-2xl rounded-tr-sm text-sm shadow-md max-w-[85%] leading-relaxed">${formattedText}</div>`;
+                html = `<div class="self-end bg-gradient-to-br from-green-500 to-green-600 text-white p-3.5 rounded-2xl rounded-tr-sm text-sm shadow-md max-w-[85%] leading-relaxed">${formattedText}</div>`;
             } else {
                 html = `<div class="self-start bg-white border border-gray-100 p-3.5 rounded-2xl rounded-tl-sm text-sm text-gray-700 shadow-sm max-w-[85%] leading-relaxed">${formattedText}</div>`;
             }
