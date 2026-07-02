@@ -273,6 +273,66 @@
         </div>
     </div>
 
+    <!-- ========== CHATBOT WIDGET ========== -->
+    <div id="chatbot-container" class="fixed bottom-24 right-4 z-50 flex flex-col items-end hidden">
+        <div class="bg-white/95 backdrop-blur-md w-[320px] h-[450px] sm:w-[350px] sm:h-[500px] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-white flex flex-col overflow-hidden transition-transform transform origin-bottom-right scale-0" id="chatbot-window">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between items-center shadow-md z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                        <i class="fa-solid fa-robot text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm leading-none">Asistente IA</h3>
+                        <span class="text-[10px] text-indigo-100 flex items-center gap-1 mt-1"><span class="w-2 h-2 bg-green-400 rounded-full inline-block animate-pulse"></span> En línea</span>
+                    </div>
+                </div>
+                <button onclick="toggleChatbot()" class="hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center transition">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <!-- Messages -->
+            <div id="chatbot-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-3 bg-gray-50/80">
+                <!-- Welcome msg -->
+                <div class="self-start bg-white border border-gray-100 p-3.5 rounded-2xl rounded-tl-sm text-sm text-gray-700 shadow-sm max-w-[85%] leading-relaxed">
+                    ¡Hola! 👋 Soy el asistente de la tienda. ¿En qué te puedo ayudar hoy?
+                </div>
+            </div>
+            <!-- Loading Indicator -->
+            <div id="chatbot-loading" class="px-4 pb-2 hidden">
+                <div class="self-start bg-white border border-gray-100 p-3 rounded-2xl rounded-tl-sm w-16 flex justify-center gap-1 shadow-sm">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
+                </div>
+            </div>
+            <!-- Input area -->
+            <div class="p-3 bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.03)] pb-safe z-10">
+                <form id="chatbot-form" onsubmit="sendChatMessage(event)" class="flex items-center gap-2">
+                    <input type="text" id="chatbot-input" placeholder="Escribe un mensaje..." class="flex-grow bg-gray-100 border border-transparent px-4 py-3 rounded-2xl text-sm outline-none focus:border-indigo-300 focus:bg-white transition" autocomplete="off">
+                    <button type="submit" class="bg-indigo-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition flex-shrink-0 shadow-md">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+                <div class="text-center mt-2">
+                    <button type="button" onclick="window.open('https://wa.me/' + (settings.whatsapp ? settings.whatsapp.replace(/\D/g, '') : ''), '_blank')" class="text-[10px] font-bold text-green-600 hover:text-green-700 hover:underline transition flex items-center justify-center gap-1 mx-auto">
+                        <i class="fa-brands fa-whatsapp"></i> Hablar con un humano
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chatbot Toggle Button -->
+    <button id="chatbot-toggle-btn" onclick="toggleChatbot()" class="fixed bottom-[88px] right-4 z-40 bg-white text-indigo-600 w-14 h-14 rounded-2xl shadow-[0_10px_25px_rgba(79,70,229,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition border border-indigo-50">
+        <i class="fa-solid fa-message-sparkles text-2xl"></i>
+        <i class="fa-solid fa-robot text-2xl"></i>
+        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+        </span>
+    </button>
+
     <!-- ========== CART SIDEBAR ========== -->
     <div id="cart-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] hidden flex justify-end">
         <div class="bg-white w-full max-w-sm h-full shadow-2xl flex flex-col modal-enter">
@@ -834,6 +894,92 @@
             t.innerText = msg;
             document.body.appendChild(t);
             setTimeout(() => t.remove(), 2500);
+        }
+
+        // ============================================================
+        // CHATBOT
+        // ============================================================
+        let chatHistory = [];
+        
+        function toggleChatbot() {
+            const container = document.getElementById('chatbot-container');
+            const windowEl = document.getElementById('chatbot-window');
+            const btn = document.getElementById('chatbot-toggle-btn');
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                btn.classList.add('opacity-0', 'scale-90');
+                setTimeout(() => btn.classList.add('hidden'), 200);
+                
+                setTimeout(() => {
+                    windowEl.classList.remove('scale-0');
+                    windowEl.classList.add('scale-100');
+                    document.getElementById('chatbot-input').focus();
+                }, 10);
+            } else {
+                windowEl.classList.remove('scale-100');
+                windowEl.classList.add('scale-0');
+                setTimeout(() => {
+                    container.classList.add('hidden');
+                    btn.classList.remove('hidden');
+                    setTimeout(() => btn.classList.remove('opacity-0', 'scale-90'), 10);
+                }, 300);
+            }
+        }
+        
+        async function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatbot-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            
+            input.value = '';
+            appendMessage('user', msg);
+            
+            document.getElementById('chatbot-loading').classList.remove('hidden');
+            const messagesContainer = document.getElementById('chatbot-messages');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            try {
+                const res = await fetch(`/api/chat/${STORE_ID}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg, history: chatHistory })
+                });
+                
+                if (!res.ok) throw new Error('Error en API');
+                
+                const data = await res.json();
+                document.getElementById('chatbot-loading').classList.add('hidden');
+                
+                appendMessage('model', data.response);
+                
+                // Update history
+                chatHistory.push({role: 'user', content: msg});
+                chatHistory.push({role: 'model', content: data.response});
+                
+            } catch (err) {
+                console.error(err);
+                document.getElementById('chatbot-loading').classList.add('hidden');
+                appendMessage('model', 'Lo siento, tuve un problema al procesar tu mensaje. Intenta de nuevo o contacta por WhatsApp.');
+            }
+        }
+        
+        function appendMessage(sender, text) {
+            const messagesContainer = document.getElementById('chatbot-messages');
+            
+            // Format text: convert newlines to <br> and bold text like **bold** to <b>bold</b>
+            let formattedText = text.replace(/\\n/g, '<br>').replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');
+            
+            let html = '';
+            if (sender === 'user') {
+                html = `<div class="self-end bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-3.5 rounded-2xl rounded-tr-sm text-sm shadow-md max-w-[85%] leading-relaxed">${formattedText}</div>`;
+            } else {
+                html = `<div class="self-start bg-white border border-gray-100 p-3.5 rounded-2xl rounded-tl-sm text-sm text-gray-700 shadow-sm max-w-[85%] leading-relaxed">${formattedText}</div>`;
+            }
+            
+            messagesContainer.insertAdjacentHTML('beforeend', html);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         // Close modals on backdrop click

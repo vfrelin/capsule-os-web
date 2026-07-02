@@ -10,6 +10,7 @@ from datetime import datetime
 import os, logging, csv, io
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
+import google.generativeai as genai
 
 # Configurar logging para ver errores en los logs de Render
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,14 @@ except Exception as e:
     logger.error(f"❌ Error conectando a MongoDB: {e}")
     MONGO_OK = False
     collection = None
+
+# Configurar Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logger.info("✅ Gemini API configurada.")
+else:
+    logger.warning("⚠️ GEMINI_API_KEY no encontrada.")
 
 class AppData(BaseModel):
     store_id: str
@@ -159,6 +168,66 @@ def serve_public_catalog(request: Request, store_id: str, product_id: str = None
 @app.get("/catalog")
 def serve_catalog_default(request: Request):
     return serve_public_catalog(request, "main_store")
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
+
+@app.post("/api/chat/{store_id}")
+def chat_with_bot(store_id: str, req: ChatRequest):
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=503, detail="Gemini API no configurada")
+        
+    store = {}
+    if MONGO_OK and collection is not None:
+        store = collection.find_one({"_id": store_id}) or {}
+        
+    settings = store.get("settings", {})
+    store_name = settings.get("name", "Capsule Store")
+    currency = settings.get("currency", "HNL")
+    
+    raw_inventory = store.get("inventory", [])
+    inventory = []
+    for p in raw_inventory:
+        if isinstance(p, dict) and p.get("isPublic", True) is not False:
+            try:
+                if int(p.get("stock", 0)) > 0:
+                    inventory.append(f"- {p.get('name')}: {currency} {p.get('price')} (Stock: {p.get('stock')})")
+            except (ValueError, TypeError):
+                pass
+                
+    inventory_str = "\\n".join(inventory) if inventory else "No hay productos disponibles por ahora."
+    
+    system_instruction = f"""
+    Eres un asistente virtual amable y servicial para la tienda '{store_name}'.
+    Tu objetivo es ayudar a los clientes a encontrar productos, responder dudas sobre métodos de pago, envío, y disponibilidad.
+    Si el cliente desea hablar con un humano o asesor, indícale amablemente que puede hacer clic en el botón de WhatsApp que está en la interfaz.
+    
+    Aquí está nuestro inventario actual con precios y stock disponible:
+    {inventory_str}
+    
+    Responde siempre de forma corta, clara, y amigable, con emojis. Si te preguntan por un producto que no está en la lista, diles que por el momento no está disponible o que pregunten en WhatsApp.
+    """
+    
+    try:
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-flash',
+            system_instruction=system_instruction
+        )
+        
+        # Convertir historial al formato de Gemini
+        formatted_history = []
+        for msg in req.history:
+            role = "user" if msg["role"] == "user" else "model"
+            formatted_history.append({"role": role, "parts": [msg["content"]]})
+            
+        chat = model.start_chat(history=formatted_history)
+        response = chat.send_message(req.message)
+        
+        return {"response": response.text}
+    except Exception as e:
+        logger.error(f"Error en chat: {e}")
+        raise HTTPException(status_code=500, detail="Error procesando tu mensaje")
 
 # Facebook Data Feed (CSV)
 @app.get("/api/feed/{store_id}.csv")
