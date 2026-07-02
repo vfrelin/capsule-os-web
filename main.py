@@ -192,7 +192,9 @@ def chat_with_bot(store_id: str, req: ChatRequest):
         if isinstance(p, dict) and p.get("isPublic", True) is not False:
             try:
                 if int(p.get("stock", 0)) > 0:
-                    inventory.append(f"- {p.get('name')}: {currency} {p.get('price')} (Stock: {p.get('stock')})")
+                    prod_url = f"/catalog/{store_id}/p/{p.get('id')}"
+                    cat_url = f"/catalog/{store_id}?cat={p.get('category').replace(' ', '%20')}" if p.get('category') else f"/catalog/{store_id}"
+                    inventory.append(f"- {p.get('name')} (Categoría: {p.get('category')}): {currency} {p.get('price')} | Stock: {p.get('stock')} | Link Producto: {prod_url} | Link Categoría: {cat_url}")
             except (ValueError, TypeError):
                 pass
                 
@@ -203,10 +205,15 @@ def chat_with_bot(store_id: str, req: ChatRequest):
     Tu objetivo es ayudar a los clientes a encontrar productos, responder dudas sobre métodos de pago, envío, y disponibilidad.
     Si el cliente desea hablar con un humano o asesor, indícale amablemente que puede hacer clic en el botón de WhatsApp que está en la interfaz.
     
-    Aquí está nuestro inventario actual con precios y stock disponible:
+    Aquí está nuestro inventario actual:
     {inventory_str}
     
-    Responde siempre de forma corta, clara, y amigable, con emojis. Si te preguntan por un producto que no está en la lista, diles que por el momento no está disponible o que pregunten en WhatsApp.
+    REGLAS IMPORTANTES:
+    1. Responde de forma corta, clara, y amigable, con emojis.
+    2. Cuando el cliente pregunte por algo, haz un resumen general y luego dale una lista corta (máximo 4-5 opciones principales) con su precio.
+    3. SIEMPRE debes incluir un enlace clicable al producto usando el formato Markdown estricto: [Ver producto](/ruta-del-producto).
+    4. También puedes invitarlo a ver toda la categoría usando el formato: [Ver todos los productos de esta categoría](/ruta-de-categoria).
+    5. No muestres las URLs directamente, siempre ponlas dentro de un texto clicable con [texto](url).
     """
     
     try:

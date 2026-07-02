@@ -976,8 +976,11 @@
         function appendMessage(sender, text) {
             const messagesContainer = document.getElementById('chatbot-messages');
             
-            // Format text: convert newlines to <br> and bold text like **bold** to <b>bold</b>
-            let formattedText = text.replace(/\\n/g, '<br>').replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');
+            // Format text: convert newlines to <br>, bold text to <b>, and markdown links to <a> tags
+            let formattedText = text
+                .replace(/\\n/g, '<br>')
+                .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')
+                .replace(/\\[(.*?)\\]\\((.*?)\\)/g, '<a href="$2" class="underline font-bold hover:text-green-800 transition">$1</a>');
             
             let html = '';
             if (sender === 'user') {
