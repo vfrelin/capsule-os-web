@@ -172,7 +172,18 @@ def get_facebook_feed(store_id: str):
         
     inventory = store.get("inventory", [])
     settings = store.get("settings", {})
-    currency = settings.get("currency", "HNL")
+    
+    # Facebook requiere código de divisa ISO (ej. HNL, USD)
+    raw_currency = settings.get("currency", "HNL").strip().upper()
+    if raw_currency in ["L", "L.", "LPS", "LEMPIRAS"]:
+        currency_iso = "HNL"
+    elif raw_currency == "$":
+        currency_iso = "USD"
+    elif len(raw_currency) == 3:
+        currency_iso = raw_currency
+    else:
+        currency_iso = "HNL"  # Default seguro para este usuario
+        
     base_url = "https://capsule-os-web.onrender.com"
     
     output = io.StringIO()
@@ -192,7 +203,7 @@ def get_facebook_feed(store_id: str):
         availability = "in stock" if stock > 0 else "out of stock"
         condition = "new"
         price_val = float(p.get("price", 0))
-        price = f"{price_val:.2f} {currency}"
+        price = f"{price_val:.2f} {currency_iso}"
         link = f"{base_url}/catalog/{store_id}#producto-{pid}"
         img = p.get("img1", "")
         brand = settings.get("name", "Capsule Store")
