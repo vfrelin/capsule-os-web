@@ -1,19 +1,23 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from pymongo import MongoClient
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 from datetime import datetime
-import os, logging
+import os, logging, csv, io
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 
 # Configurar logging para ver errores en los logs de Render
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -116,14 +120,74 @@ def health_check():
 def serve_index():
     return FileResponse("static/index.html")
 
-# Catálogo Público (sin login)
+# Catálogo Público (SSR para SEO)
 @app.get("/catalog/{store_id}")
-def serve_public_catalog(store_id: str):
-    return FileResponse("static/catalog.html")
+@app.get("/catalog/{store_id}/p/{product_id}")
+def serve_public_catalog(request: Request, store_id: str, product_id: str = None):
+    store = {}
+    if MONGO_OK and collection is not None:
+        store = collection.find_one({"_id": store_id}) or {}
+        clean_mongo_doc(store)
+        
+    settings = store.get("settings", {"name": "Catálogo", "about": "Explora nuestra tienda"})
+    inventory = [p for p in store.get("inventory", []) if p.get("isPublic", True) is not False and p.get("stock", 0) > 0]
+    
+    product = next((p for p in inventory if str(p.get("id")) == str(product_id)), None) if product_id else None
+    
+    return templates.TemplateResponse("catalog.html", {
+        "request": request, 
+        "store_id": store_id, 
+        "settings": settings,
+        "inventory": inventory,
+        "product": product,
+        "base_url": "https://capsule-os-web.onrender.com"
+    })
 
 @app.get("/catalog")
-def serve_catalog_default():
-    return FileResponse("static/catalog.html")
+def serve_catalog_default(request: Request):
+    return serve_public_catalog(request, "main_store")
+
+# Facebook Data Feed (CSV)
+@app.get("/api/feed/{store_id}.csv")
+def get_facebook_feed(store_id: str):
+    if not MONGO_OK or collection is None:
+        raise HTTPException(status_code=503, detail="MongoDB no conectado")
+        
+    store = collection.find_one({"_id": store_id})
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+        
+    inventory = store.get("inventory", [])
+    settings = store.get("settings", {})
+    currency = settings.get("currency", "HNL")
+    base_url = "https://capsule-os-web.onrender.com"
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Cabeceras requeridas por Facebook
+    writer.writerow(["id", "title", "description", "availability", "condition", "price", "link", "image_link", "brand"])
+    
+    for p in inventory:
+        if p.get("isPublic") is False:
+            continue
+            
+        pid = p.get("id", "")
+        title = p.get("name", "")
+        desc = p.get("desc", "") or title
+        stock = p.get("stock", 0)
+        availability = "in stock" if stock > 0 else "out of stock"
+        condition = "new"
+        price_val = float(p.get("price", 0))
+        price = f"{price_val:.2f} {currency}"
+        link = f"{base_url}/catalog/{store_id}#producto-{pid}"
+        img = p.get("img1", "")
+        brand = settings.get("name", "Capsule Store")
+        
+        writer.writerow([pid, title, desc, availability, condition, price, link, img, brand])
+        
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=feed_{store_id}.csv"})
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
