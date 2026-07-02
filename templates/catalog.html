@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#4f46e5">
     {% if product %}
-    <title id="page-title">{{ product.name }} — {{ settings.get('name', 'Tienda') }}</title>
-    <meta name="description" content="{{ product.desc or product.name }}">
-    <meta property="og:title" content="{{ product.name }}">
-    <meta property="og:description" content="{{ product.desc or product.name }}">
-    <meta property="og:image" content="{{ product.img1 or 'https://via.placeholder.com/600x600' }}">
-    <meta property="og:url" content="{{ base_url }}/catalog/{{ store_id }}/p/{{ product.id }}">
+    <title id="page-title">{{ product.get('name', 'Producto') }} — {{ settings.get('name', 'Tienda') }}</title>
+    <meta name="description" content="{{ product.get('desc') or product.get('name') }}">
+    <meta property="og:title" content="{{ product.get('name') }}">
+    <meta property="og:description" content="{{ product.get('desc') or product.get('name') }}">
+    <meta property="og:image" content="{{ product.get('img1') or 'https://via.placeholder.com/600x600' }}">
+    <meta property="og:url" content="{{ base_url }}/catalog/{{ store_id }}/p/{{ product.get('id') }}">
     {% else %}
     <title id="page-title">{{ settings.get('name', 'Tienda') }} — Catálogo</title>
     <meta name="description" content="{{ settings.get('about', 'Explora nuestros productos') }}">
@@ -207,21 +207,21 @@
         <div id="catalog-list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {% for p in inventory %}
             <div class="product-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer"
-                 onclick="openProductModal('{{ p.id }}')">
+                 onclick="openProductModal('{{ p.get('id') }}')">
                 <div class="relative">
-                    <img src="{{ p.img1 or 'https://via.placeholder.com/300?text=Sin+Imagen' }}"
-                        alt="{{ p.name }}"
+                    <img src="{{ p.get('img1') or 'https://via.placeholder.com/300?text=Sin+Imagen' }}"
+                        alt="{{ p.get('name') }}"
                         loading="lazy"
                         class="w-full aspect-square object-cover"
                         onerror="this.src='https://via.placeholder.com/300?text=Sin+Imagen'">
-                    {% if p.stock <= 3 %}
+                    {% if p.get('stock', 0)|int <= 3 %}
                     <span class="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">Últimas</span>
                     {% endif %}
                 </div>
                 <div class="p-3">
-                    <span onclick="event.stopPropagation(); setCategory('{{ p.category }}');" class="text-[9px] font-bold text-indigo-500 uppercase tracking-wide cursor-pointer hover:underline relative z-10">{{ p.category }}</span>
-                    <h3 class="font-bold text-sm leading-snug mt-0.5 line-clamp-2">{{ p.name }}</h3>
-                    <p class="text-base font-black text-indigo-600 mt-1.5">{{ settings.get('currency', 'L') }} {{ '{:.2f}'.format(p.price|float) }}</p>
+                    <span onclick="event.stopPropagation(); setCategory('{{ p.get('category') }}');" class="text-[9px] font-bold text-indigo-500 uppercase tracking-wide cursor-pointer hover:underline relative z-10">{{ p.get('category') }}</span>
+                    <h3 class="font-bold text-sm leading-snug mt-0.5 line-clamp-2">{{ p.get('name') }}</h3>
+                    <p class="text-base font-black text-indigo-600 mt-1.5">{{ settings.get('currency', 'L') }} {{ '{:.2f}'.format(p.get('price', 0)|float) }}</p>
                 </div>
             </div>
             {% endfor %}
