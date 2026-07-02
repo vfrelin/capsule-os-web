@@ -189,26 +189,48 @@ def get_facebook_feed(store_id: str):
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Cabeceras requeridas por Facebook
-    writer.writerow(["id", "title", "description", "availability", "condition", "price", "link", "image_link", "brand"])
+    # Cabeceras requeridas por Facebook (agregado additional_image_link)
+    writer.writerow(["id", "title", "description", "availability", "condition", "price", "link", "image_link", "additional_image_link", "brand"])
     
     for p in inventory:
         if p.get("isPublic") is False:
             continue
             
+        try:
+            stock = int(p.get("stock", 0))
+        except (ValueError, TypeError):
+            stock = 0
+            
+        # Excluir productos sin stock del catálogo de Facebook
+        if stock <= 0:
+            continue
+            
         pid = p.get("id", "")
         title = p.get("name", "")
         desc = p.get("desc", "") or title
-        stock = p.get("stock", 0)
-        availability = "in stock" if stock > 0 else "out of stock"
+        availability = "in stock"
         condition = "new"
-        price_val = float(p.get("price", 0))
+        
+        try:
+            price_val = float(p.get("price", 0))
+        except (ValueError, TypeError):
+            price_val = 0.0
+            
         price = f"{price_val:.2f} {currency_iso}"
         link = f"{base_url}/catalog/{store_id}#producto-{pid}"
-        img = p.get("img1", "")
+        
+        img1 = p.get("img1", "")
+        img2 = p.get("img2", "")
+        img3 = p.get("img3", "")
+        
+        # Usar img1 como principal, si está vacía usar otra
+        main_img = img1 or img2 or img3
+        additional_imgs = [img for img in [img2, img3, img1] if img and img != main_img]
+        additional_image_link = ",".join(additional_imgs[:10])  # CSV separador por comas
+        
         brand = settings.get("name", "Capsule Store")
         
-        writer.writerow([pid, title, desc, availability, condition, price, link, img, brand])
+        writer.writerow([pid, title, desc, availability, condition, price, link, main_img, additional_image_link, brand])
         
     output.seek(0)
     return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=feed_{store_id}.csv"})
