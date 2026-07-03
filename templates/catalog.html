@@ -41,11 +41,11 @@
     t.src=v;s=b.getElementsByTagName(e)[0];
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1706500354108611');
+    fbq('init', '915325540959243');
     fbq('track', 'PageView');
     </script>
     <noscript><img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=1706500354108611&ev=PageView&noscript=1"
+    src="https://www.facebook.com/tr?id=915325540959243&ev=PageView&noscript=1"
     /></noscript>
     <!-- End Facebook Pixel Code -->
 
@@ -613,7 +613,7 @@
             // Meta Pixel Event: ViewContent
             if (typeof fbq !== 'undefined') {
                 fbq('track', 'ViewContent', {
-                    content_ids: [p.id],
+                    content_ids: [String(p.id)],
                     content_name: p.name,
                     content_category: p.category,
                     currency: curr,
@@ -777,7 +777,7 @@
             // Meta Pixel Event: AddToCart
             if (typeof fbq !== 'undefined') {
                 fbq('track', 'AddToCart', {
-                    content_ids: [p.id],
+                    content_ids: [String(p.id)],
                     content_name: p.name,
                     currency: settings.currency || 'L',
                     value: p.price * currentModalQty,
@@ -873,13 +873,20 @@
                 });
             }
 
-            // Meta Pixel Event: InitiateCheckout & Lead
+            // Meta Pixel Event: InitiateCheckout & Purchase
             if (typeof fbq !== 'undefined') {
-                const contentIds = cart.map(item => item.id);
+                const contentIds = cart.map(item => String(item.id));
                 fbq('track', 'InitiateCheckout', {
                     content_ids: contentIds,
                     currency: curr,
                     value: total,
+                    num_items: cart.reduce((acc, item) => acc + item.qty, 0)
+                });
+                fbq('track', 'Purchase', {
+                    content_ids: contentIds,
+                    currency: curr,
+                    value: total,
+                    content_type: 'product',
                     num_items: cart.reduce((acc, item) => acc + item.qty, 0)
                 });
                 fbq('track', 'Lead', {
