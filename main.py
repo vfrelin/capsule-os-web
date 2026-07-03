@@ -124,6 +124,43 @@ def health_check():
             return {"status": "degraded", "mongo": "error", "detail": str(e)}
     return {"status": "error", "mongo": "disconnected"}
 
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse, Response
+# ... later in the file ...
+
+# Endpoints de SEO (Robots y Sitemap)
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def get_robots_txt():
+    content = "User-agent: *\nAllow: /\nSitemap: https://capsuleshop.net/sitemap.xml\n"
+    return content
+
+@app.get("/sitemap.xml")
+def get_sitemap():
+    base_url = "https://capsuleshop.net"
+    store_id = "main_store"
+    
+    urls = []
+    urls.append(f"{base_url}/")
+    urls.append(f"{base_url}/catalog/{store_id}")
+    
+    if MONGO_OK and collection is not None:
+        store = collection.find_one({"_id": store_id})
+        if store:
+            for p in store.get("inventory", []):
+                if isinstance(p, dict) and p.get("isPublic", True) is not False:
+                    try:
+                        if int(p.get("stock", 0)) > 0:
+                            urls.append(f"{base_url}/catalog/{store_id}/p/{p.get('id')}")
+                    except (ValueError, TypeError):
+                        pass
+    
+    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for url in urls:
+        xml_content += f"  <url>\n    <loc>{url}</loc>\n    <changefreq>daily</changefreq>\n  </url>\n"
+    xml_content += '</urlset>'
+    
+    return Response(content=xml_content, media_type="application/xml")
+
 # Servir Frontend
 @app.get("/")
 def serve_index():
@@ -161,7 +198,7 @@ def serve_public_catalog(request: Request, store_id: str, product_id: str = None
             "settings": settings,
             "inventory": inventory,
             "product": product,
-            "base_url": "https://capsule-os-web.onrender.com"
+            "base_url": "https://capsuleshop.net"
         }
     )
 
@@ -260,7 +297,7 @@ def get_facebook_feed(store_id: str):
     else:
         currency_iso = "HNL"  # Default seguro para este usuario
         
-    base_url = "https://capsule-os-web.onrender.com"
+    base_url = "https://capsuleshop.net"
     
     output = io.StringIO()
     writer = csv.writer(output)
