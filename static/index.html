@@ -1213,14 +1213,7 @@
             if (filterCat !== 'Todos') {
                 prods = prods.filter(p => p.category === filterCat);
             }
-            if (sortMode === 'recent') {
-                prods.sort((a, b) => {
-                    const timeB = b.lastUpdated || 0;
-                    const timeA = a.lastUpdated || 0;
-                    if (timeB !== timeA) return timeB - timeA;
-                    return 0; // Preserve natural order!
-                });
-            } else if (sortMode === 'stock-desc') {
+            if (sortMode === 'stock-desc') {
                 prods.sort((a, b) => b.stock - a.stock);
             } else if (sortMode === 'sales-desc') {
                 const productSales = {};
@@ -2753,6 +2746,15 @@
 
     </script>
 
+    <!-- Global Scroll Buttons -->
+    <div id="global-scroll-btns" class="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 hover:scale-110 transition-all focus:outline-none" title="Ir arriba">
+            <i class="fa-solid fa-arrow-up text-xl"></i>
+        </button>
+        <button onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})" class="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 hover:scale-110 transition-all focus:outline-none" title="Ir abajo">
+            <i class="fa-solid fa-arrow-down text-xl"></i>
+        </button>
+    </div>
 </body>
 
 </html>
