@@ -140,7 +140,6 @@ def get_sitemap():
     
     urls = []
     urls.append(f"{base_url}/")
-    urls.append(f"{base_url}/catalog/{store_id}")
     
     if MONGO_OK and collection is not None:
         store = collection.find_one({"_id": store_id})
@@ -149,7 +148,7 @@ def get_sitemap():
                 if isinstance(p, dict) and p.get("isPublic", True) is not False:
                     try:
                         if int(p.get("stock", 0)) > 0:
-                            urls.append(f"{base_url}/catalog/{store_id}/p/{p.get('id')}")
+                            urls.append(f"{base_url}/p/{p.get('id')}")
                     except (ValueError, TypeError):
                         pass
     
@@ -161,15 +160,17 @@ def get_sitemap():
     
     return Response(content=xml_content, media_type="application/xml")
 
-# Servir Frontend
-@app.get("/")
-def serve_index():
+# Servir Frontend Administrativo (Capsule OS)
+@app.get("/admin")
+def serve_admin():
     return FileResponse("static/index.html")
 
 # Catálogo Público (SSR para SEO)
+@app.get("/")
+@app.get("/p/{product_id}")
 @app.get("/catalog/{store_id}")
 @app.get("/catalog/{store_id}/p/{product_id}")
-def serve_public_catalog(request: Request, store_id: str, product_id: str = None):
+def serve_public_catalog(request: Request, store_id: str = "main_store", product_id: str = None):
     store = {}
     if MONGO_OK and collection is not None:
         store = collection.find_one({"_id": store_id}) or {}

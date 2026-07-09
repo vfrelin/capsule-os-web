@@ -4,20 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#4f46e5">
+    {% set canonical_base = base_url if store_id == 'main_store' else base_url ~ '/catalog/' ~ store_id %}
+    {% set prod_canonical_base = base_url ~ '/p/' if store_id == 'main_store' else base_url ~ '/catalog/' ~ store_id ~ '/p/' %}
+
     {% if product %}
     <title id="page-title">{{ product.get('name', 'Producto') }} | {{ settings.get('name', 'Tienda') }}</title>
     <meta name="description" content="Compra {{ product.get('name') }} en {{ settings.get('name', 'Nuestra Tienda') }}. {{ (product.get('desc') or '')[:100] | striptags }}... Precio: {{ settings.get('currency', 'L') }}{{ product.get('price', 0) }}.">
     <meta property="og:title" content="{{ product.get('name') }} | {{ settings.get('name', 'Tienda') }}">
     <meta property="og:description" content="Compra {{ product.get('name') }} en {{ settings.get('name', 'Nuestra Tienda') }}. {{ (product.get('desc') or '')[:100] | striptags }}...">
     <meta property="og:image" content="{{ product.get('img1') or 'https://via.placeholder.com/600x600' }}">
-    <meta property="og:url" content="{{ base_url }}/catalog/{{ store_id }}/p/{{ product.get('id') }}">
+    <meta property="og:url" content="{{ prod_canonical_base }}{{ product.get('id') }}">
+    <link rel="canonical" href="{{ prod_canonical_base }}{{ product.get('id') }}" />
     {% else %}
     <title id="page-title">{{ settings.get('name', 'Tienda') }} — Tecnología y Accesorios | Catálogo Online</title>
     <meta name="description" content="{{ (settings.get('about') or 'Explora el catálogo de productos de nuestra tienda. Envíos disponibles, compras seguras.')[:150] | striptags }} Descubre nuestro surtido hoy.">
     <meta property="og:title" content="{{ settings.get('name', 'Catálogo Público') }} — Tecnología y Accesorios">
     <meta property="og:description" content="{{ (settings.get('about') or 'Explora el catálogo de productos de nuestra tienda. Envíos disponibles, compras seguras.')[:150] | striptags }} Descubre nuestro surtido hoy.">
     <meta property="og:image" content="{{ settings.get('logo', 'https://via.placeholder.com/600x315?text=Logo') }}">
-    <meta property="og:url" content="{{ base_url }}/catalog/{{ store_id }}">
+    <meta property="og:url" content="{{ canonical_base }}">
+    <link rel="canonical" href="{{ canonical_base }}" />
     {% endif %}
     
     <!-- JSON-LD Structured Data -->
@@ -27,8 +32,8 @@
       "@type": "LocalBusiness",
       "name": "{{ settings.get('name', 'Nuestra Tienda') }}",
       "image": "{{ settings.get('logo', 'https://via.placeholder.com/600x315?text=Logo') }}",
-      "@id": "{{ base_url }}/catalog/{{ store_id }}",
-      "url": "{{ base_url }}/catalog/{{ store_id }}",
+      "@id": "{{ canonical_base }}",
+      "url": "{{ canonical_base }}",
       "telephone": "{{ settings.get('whatsapp', '') }}",
       "address": {
         "@type": "PostalAddress",
