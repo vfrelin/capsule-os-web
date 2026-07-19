@@ -452,12 +452,18 @@
                         <div><label class="block text-xs font-bold mb-1">Stock</label><input type="number"
                                 id="prod-stock" class="w-full border rounded p-2 bg-gray-50 outline-none" required>
                         </div>
-                        <div class="flex items-center pt-5"><label class="relative inline-flex cursor-pointer"><input
-                                    type="checkbox" id="prod-public" checked class="sr-only peer">
-                                <div
-                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
-                                </div><span class="ml-3 text-sm font-bold">Público</span>
-                            </label></div>
+                        <div class="flex items-center pt-5 gap-6">
+                            <label class="relative inline-flex cursor-pointer">
+                                <input type="checkbox" id="prod-public" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                <span class="ml-3 text-sm font-bold">Público</span>
+                            </label>
+                            <label class="relative inline-flex cursor-pointer">
+                                <input type="checkbox" id="prod-recurring" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                                <span class="ml-3 text-sm font-bold text-red-600">Recurrente</span>
+                            </label>
+                        </div>
                         <div class="md:col-span-4 space-y-3 mt-2">
                             <label class="block text-xs font-bold mb-1"><i class="fa-solid fa-images text-indigo-500 mr-1"></i>Imágenes del Producto</label>
                             <!-- Imagen 1 -->
@@ -1190,6 +1196,9 @@
         function toggleProductForm() { document.getElementById('product-form-container').classList.toggle('hidden'); if (document.getElementById('product-form-container').classList.contains('hidden')) document.getElementById('product-form').reset(); }
         function setInventoryView(view) { currentInventoryView = view; updateViewButtonUI('btn-inv', view); renderInventory(); }
         function renderInventory() {
+            const hasUrgent = inventory.some(p => p.isRecurring && p.stock <= 0);
+            const emptyTabBtn = document.getElementById('tab-inv-empty');
+            if (emptyTabBtn) emptyTabBtn.innerHTML = hasUrgent ? 'Sin inventario <span class="inline-block w-2 h-2 bg-red-600 rounded-full ml-1 animate-pulse"></span>' : 'Sin inventario';
             const list = document.getElementById('inventory-list'); const curr = document.getElementById('set-currency').value || 'L'; list.innerHTML = '';
             
             const searchQ = (document.getElementById('inv-search')?.value || '').toLowerCase();
@@ -1228,6 +1237,10 @@
                 prods.sort((a, b) => (productSales[b.id] || 0) - (productSales[a.id] || 0));
             }
 
+            if (currentInventoryTab === 'empty') {
+                prods.sort((a, b) => (b.isRecurring ? 1 : 0) - (a.isRecurring ? 1 : 0));
+            }
+
             if (prods.length === 0) {
                 list.innerHTML = '<div class="col-span-full p-10 text-center text-gray-400"><i class="fa-solid fa-box-open text-4xl mb-3"></i><p>No se encontraron productos.</p></div>';
                 return;
@@ -1236,19 +1249,23 @@
             if (currentInventoryView === 'grid') {
                 list.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
                 prods.forEach(prod => {
-                    list.innerHTML += `<div class="bg-white rounded-xl shadow-sm border flex flex-col relative overflow-hidden"><img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Stk: ${prod.stock}</span></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    const recBadge = prod.isRecurring && prod.stock <= 0 ? `<div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow z-10 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span>URGENTE</div>` : '';
+                    const borderClass = prod.isRecurring && prod.stock <= 0 ? 'border-2 border-red-500 shadow-md' : 'border';
+                    list.innerHTML += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Stk: ${prod.stock}</span></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
             } else {
                 list.className = 'flex flex-col gap-3';
                 prods.forEach(prod => {
-                    list.innerHTML += `<div class="bg-white rounded-xl shadow-sm border overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1">${prod.name}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    const recBadge = prod.isRecurring && prod.stock <= 0 ? `<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded ml-2 shadow-sm font-bold animate-pulse">URGENTE</span>` : '';
+                    const borderClass = prod.isRecurring && prod.stock <= 0 ? 'border-2 border-red-500' : 'border';
+                    list.innerHTML += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
             }
         }
         document.getElementById('product-form').addEventListener('submit', function (e) {
             e.preventDefault();
             const id = document.getElementById('prod-id').value || 'PRD-' + Date.now();
-            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now() };
+            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, isRecurring: document.getElementById('prod-recurring').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now() };
             const idx = inventory.findIndex(p => p.id === id); if (idx > -1) { inventory.splice(idx, 1); inventory.unshift(np); } else inventory.unshift(np);
             // Guardar categoría nueva en la lista persistente
             saveCategoryIfNew(np.category);
@@ -1449,7 +1466,7 @@
         function editProduct(id) {
             const p = inventory.find(x => x.id === id); if (!p) return;
             updateCategoryDatalist(); // Poblar select antes de setear el valor
-            document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-category').value = p.category; document.getElementById('prod-box').value = p.box || ''; document.getElementById('prod-cost').value = p.cost; document.getElementById('prod-price').value = p.price; document.getElementById('prod-stock').value = p.stock; document.getElementById('prod-desc').value = p.desc || ''; document.getElementById('prod-img1').value = p.img1 || ''; document.getElementById('prod-img2').value = p.img2 || ''; document.getElementById('prod-img3').value = p.img3 || ''; document.getElementById('prod-video').value = p.video || '';
+            document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-category').value = p.category; document.getElementById('prod-box').value = p.box || ''; document.getElementById('prod-cost').value = p.cost; document.getElementById('prod-price').value = p.price; document.getElementById('prod-stock').value = p.stock; document.getElementById('prod-desc').value = p.desc || ''; document.getElementById('prod-public').checked = p.isPublic !== false; document.getElementById('prod-recurring').checked = p.isRecurring === true; document.getElementById('prod-img1').value = p.img1 || ''; document.getElementById('prod-img2').value = p.img2 || ''; document.getElementById('prod-img3').value = p.img3 || ''; document.getElementById('prod-video').value = p.video || '';
             updateImgPreview('prod-img1'); updateImgPreview('prod-img2'); updateImgPreview('prod-img3');
             updateVideoPreview(); 
             document.getElementById('product-form-container').classList.remove('hidden'); window.scrollTo(0, 0);
