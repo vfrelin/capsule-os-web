@@ -965,7 +965,21 @@
                     if (salesHistory.length === 0 && localSales.length > 0) salesHistory = localSales;
                     if (customersDB.length === 0 && localCustomers.length > 0) customersDB = localCustomers;
                     if (usersDB.length <= 1 && localUsers.length > 1) usersDB = localUsers;
-                    if (inventory.length > 0 && cloudData.inventory?.length === 0) syncToCloud(); // Auto-restaurar la nube
+                    
+                    let needsSync = false;
+                    inventory.forEach(p => {
+                        if (!p.box && p.desc) {
+                            const match = p.desc.match(/caja\s*[:#\-]?\s*([a-zA-Z0-9]+)/i);
+                            if (match && match[1]) {
+                                p.box = match[1].toUpperCase();
+                                needsSync = true;
+                            }
+                        }
+                    });
+                    
+                    if (inventory.length > 0 && cloudData.inventory?.length === 0) needsSync = true; // Auto-restaurar la nube
+                    if (needsSync) syncToCloud();
+                    
                     if (cloudData.settings && Object.keys(cloudData.settings).length > 0) localStorage.setItem('capsuleSettings', JSON.stringify(cloudData.settings));
                     statusLabel.innerText = "Sincronización exitosa.";
                 } else throw new Error("API Falló");
