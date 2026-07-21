@@ -99,6 +99,17 @@ def save_data(data: AppData):
     try:
         store_data = data.dict()
         store_id = store_data.pop("store_id")
+        
+        if "inventory" in store_data:
+            import re
+            for p in store_data["inventory"]:
+                desc = p.get("desc", "")
+                box = p.get("box", "")
+                if not box and desc:
+                    match = re.search(r'caja\s*[:#\-]?\s*([a-zA-Z0-9]+)', str(desc), re.IGNORECASE)
+                    if match:
+                        p["box"] = match.group(1).upper()
+                        
         collection.update_one({"_id": store_id}, {"$set": store_data}, upsert=True)
         logger.info(f"✅ Tienda '{store_id}' guardada: {len(store_data.get('inventory', []))} productos.")
         return {"status": "success", "store": store_id}
