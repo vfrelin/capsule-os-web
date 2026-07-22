@@ -899,6 +899,23 @@
         </div>
     </div>
 
+    <!-- MODAL: GESTIONAR CATEGORÍAS -->
+    <div id="category-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] hidden flex justify-center items-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[80vh]">
+            <div class="bg-gray-100 px-6 py-4 flex items-center justify-between border-b">
+                <h3 class="text-lg font-black text-gray-800"><i class="fa-solid fa-list mr-2"></i>Gestionar Categorías</h3>
+                <button onclick="closeCategoryModal()" class="text-gray-500 hover:text-red-500 w-8 h-8 rounded-full flex items-center justify-center transition">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow bg-gray-50">
+                <div id="category-modal-list" class="space-y-2">
+                    <!-- Lista de categorías renderizada aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Fix common typo in address
         try {
@@ -1448,48 +1465,98 @@
         }
 
         function manageCategories() {
+            document.getElementById('category-modal').classList.remove('hidden');
+            renderCategoryModalList();
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('category-modal').classList.add('hidden');
+        }
+
+        function renderCategoryModalList() {
+            const listEl = document.getElementById('category-modal-list');
             const saved = getSavedCategories();
-            if(saved.length === 0) {
-                alert("No hay categorías guardadas para gestionar.");
+            const fromInventory = [...new Set(inventory.map(p => p.category).filter(Boolean))];
+            const allCats = [...new Set([...saved, ...fromInventory])];
+            allCats.sort((a, b) => a.localeCompare(b, 'es'));
+
+            if (allCats.length === 0) {
+                listEl.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No hay categorías registradas.</p>';
                 return;
             }
-            const catList = saved.map((c, i) => `${i + 1}. ${c}`).join('\n');
-            const input = prompt(`Categorías actuales:\n${catList}\n\nEscriba el número de la categoría a editar/eliminar, o cancele:`);
-            if(!input) return;
-            const idx = parseInt(input) - 1;
-            if(isNaN(idx) || idx < 0 || idx >= saved.length) {
-                alert("Número inválido.");
-                return;
-            }
-            const action = prompt(`Seleccionó: "${saved[idx]}"\n\n¿Qué desea hacer?\nEscriba "E" para Editar, "D" para Eliminar:`);
-            if(!action) return;
-            if(action.toUpperCase() === 'D') {
-                if(confirm(`¿Seguro que desea eliminar "${saved[idx]}"?`)) {
-                    saved.splice(idx, 1);
-                    const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
-                    s.categories = saved;
-                    localStorage.setItem('capsuleSettings', JSON.stringify(s));
-                    updateCategoryDatalist();
-                    alert("Categoría eliminada.");
+
+            listEl.innerHTML = allCats.map(c => `
+                <div class="bg-white border rounded-lg p-3 flex justify-between items-center shadow-sm">
+                    <span class="text-sm font-bold text-gray-700">${c}</span>
+                    <div class="flex gap-2">
+                        <button onclick="editCategoryName('${c}')" class="text-indigo-500 hover:text-indigo-700 w-8 h-8 flex items-center justify-center rounded bg-indigo-50" title="Editar">
+                            <i class="fa-solid fa-pen text-xs"></i>
+                        </button>
+                        <button onclick="deleteCategoryName('${c}')" class="text-red-500 hover:text-red-700 w-8 h-8 flex items-center justify-center rounded bg-red-50" title="Eliminar">
+                            <i class="fa-solid fa-times text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editCategoryName(oldName) {
+            const newName = prompt(`Editar nombre de la categoría "${oldName}":`, oldName);
+            if (newName && newName.trim() !== '' && newName.trim() !== oldName) {
+                const finalName = newName.trim();
+                
+                // Actualizar en settings
+                const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+                if (!s.categories) s.categories = [];
+                const idx = s.categories.indexOf(oldName);
+                if (idx > -1) {
+                    s.categories[idx] = finalName;
+                } else {
+                    s.categories.push(finalName);
                 }
-            } else if(action.toUpperCase() === 'E') {
-                const newName = prompt(`Nuevo nombre para "${saved[idx]}":`, saved[idx]);
-                if(newName && newName.trim() !== '') {
-                    const oldName = saved[idx];
-                    saved[idx] = newName.trim();
-                    const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
-                    s.categories = saved;
-                    localStorage.setItem('capsuleSettings', JSON.stringify(s));
-                    
-                    if(confirm(`¿Desea actualizar también todos los productos que estaban en la categoría "${oldName}" al nuevo nombre "${newName.trim()}"?`)) {
-                        inventory.forEach(p => {
-                            if(p.category === oldName) p.category = newName.trim();
-                        });
-                        syncToCloud();
-                        renderInventory();
+                localStorage.setItem('capsuleSettings', JSON.stringify(s));
+
+                // Actualizar en el inventario
+                let updated = false;
+                inventory.forEach(p => {
+                    if (p.category === oldName) {
+                        p.category = finalName;
+                        updated = true;
                     }
-                    updateCategoryDatalist();
-                    alert("Categoría actualizada.");
+                });
+
+                updateCategoryDatalist();
+                renderCategoryModalList();
+                if (updated) {
+                    syncToCloud();
+                    renderInventory();
+                }
+            }
+        }
+
+        function deleteCategoryName(catName) {
+            if (confirm(`¿Seguro que deseas eliminar la categoría "${catName}"?\n\nLos productos que tengan esta categoría quedarán sin categoría (pero no se borrarán).`)) {
+                // Borrar de settings
+                const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
+                if (s.categories) {
+                    s.categories = s.categories.filter(c => c !== catName);
+                    localStorage.setItem('capsuleSettings', JSON.stringify(s));
+                }
+
+                // Borrar del inventario
+                let updated = false;
+                inventory.forEach(p => {
+                    if (p.category === catName) {
+                        p.category = ""; // Quitar la categoría
+                        updated = true;
+                    }
+                });
+
+                updateCategoryDatalist();
+                renderCategoryModalList();
+                if (updated) {
+                    syncToCloud();
+                    renderInventory();
                 }
             }
         }
