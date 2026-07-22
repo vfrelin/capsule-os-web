@@ -985,6 +985,10 @@
                     
                     let needsSync = false;
                     inventory.forEach(p => {
+                        if (!p.category || p.category.trim() === "") {
+                            p.category = "Sin categoría";
+                            needsSync = true;
+                        }
                         if (!p.box && p.desc) {
                             const match = p.desc.match(/caja\s*[:#\-]?\s*([a-zA-Z0-9]+)/i);
                             if (match && match[1]) {
@@ -1535,7 +1539,7 @@
         }
 
         function deleteCategoryName(catName) {
-            if (confirm(`¿Seguro que deseas eliminar la categoría "${catName}"?\n\nLos productos que tengan esta categoría quedarán sin categoría (pero no se borrarán).`)) {
+            if (confirm(`¿Seguro que deseas eliminar la categoría "${catName}"?\n\nLos productos que tengan esta categoría pasarán a "Sin categoría".`)) {
                 // Borrar de settings
                 const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
                 if (s.categories) {
@@ -1547,7 +1551,7 @@
                 let updated = false;
                 inventory.forEach(p => {
                     if (p.category === catName) {
-                        p.category = ""; // Quitar la categoría
+                        p.category = "Sin categoría"; // Mover a Sin categoría
                         updated = true;
                     }
                 });
