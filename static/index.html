@@ -519,7 +519,7 @@
                 <div class="flex flex-col sm:flex-row gap-3">
                     <div class="relative flex-grow">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
-                        <input type="text" id="inv-search" oninput="renderInventory()" placeholder="Buscar producto por título, caja o descripción..." class="w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-lg outline-none focus:border-indigo-500 text-sm">
+                        <input type="text" id="inv-search" oninput="searchInventory()" placeholder="Buscar producto por título, caja o descripción..." class="w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-lg outline-none focus:border-indigo-500 text-sm">
                     </div>
                     <select id="inv-cat-filter" onchange="renderInventory()" class="bg-gray-50 border rounded-lg px-3 py-2 outline-none text-sm focus:border-indigo-500 min-w-[150px]">
                         <option value="Todos">Todas las Categorías</option>
@@ -1231,6 +1231,8 @@
 
         function toggleProductForm() { document.getElementById('product-form-container').classList.toggle('hidden'); if (document.getElementById('product-form-container').classList.contains('hidden')) document.getElementById('product-form').reset(); }
         function setInventoryView(view) { currentInventoryView = view; updateViewButtonUI('btn-inv', view); renderInventory(); }
+        let debounceInvTimer;
+        function searchInventory() { clearTimeout(debounceInvTimer); debounceInvTimer = setTimeout(renderInventory, 300); }
         function renderInventory() {
             const hasUrgent = inventory.some(p => p.isRecurring && p.stock <= 0);
             const emptyTabBtn = document.getElementById('tab-inv-empty');
@@ -1284,18 +1286,22 @@
 
             if (currentInventoryView === 'grid') {
                 list.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
+                let htmlStr = '';
                 prods.forEach(prod => {
                     const recBadge = prod.isRecurring && prod.stock <= 0 ? `<div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow z-10 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span>URGENTE</div>` : '';
                     const borderClass = prod.isRecurring && prod.stock <= 0 ? 'border-2 border-red-500 shadow-md' : 'border';
-                    list.innerHTML += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1"><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'}</span><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1"><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'}</span><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
+                list.innerHTML = htmlStr;
             } else {
                 list.className = 'flex flex-col gap-3';
+                let htmlStr = '';
                 prods.forEach(prod => {
                     const recBadge = prod.isRecurring && prod.stock <= 0 ? `<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded ml-2 shadow-sm font-bold animate-pulse">URGENTE</span>` : '';
                     const borderClass = prod.isRecurring && prod.stock <= 0 ? 'border-2 border-red-500' : 'border';
-                    list.innerHTML += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
+                list.innerHTML = htmlStr;
             }
         }
         document.getElementById('product-form').addEventListener('submit', function (e) {
