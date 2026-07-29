@@ -225,6 +225,33 @@
                 </div>
 
                 <!-- FILA 3: Ventas por periodo rápido + Top/Recientes -->
+                <!-- FILA 2.75: Métricas de Ticket y Días -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg text-center">
+                        <i class="fa-solid fa-receipt text-indigo-400 text-2xl mb-2"></i>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Ticket Promedio</p>
+                        <h3 id="dash-ticket-avg" class="text-xl font-black text-white mt-1">L 0.00</h3>
+                    </div>
+                    <div class="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg text-center">
+                        <i class="fa-solid fa-calendar-plus text-emerald-400 text-2xl mb-2"></i>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Día Más Ventas</p>
+                        <h3 id="dash-best-day-val" class="text-xl font-black text-emerald-400 mt-1">L 0.00</h3>
+                        <p id="dash-best-day-date" class="text-[9px] text-gray-500 mt-1">-</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg text-center">
+                        <i class="fa-solid fa-calendar-minus text-red-400 text-2xl mb-2"></i>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Día Menos Ventas</p>
+                        <h3 id="dash-worst-day-val" class="text-xl font-black text-red-400 mt-1">L 0.00</h3>
+                        <p id="dash-worst-day-date" class="text-[9px] text-gray-500 mt-1">-</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl p-4 shadow-lg text-center">
+                        <i class="fa-solid fa-ghost text-gray-500 text-2xl mb-2"></i>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Días Cero Ventas</p>
+                        <h3 id="dash-zero-days" class="text-xl font-black text-gray-300 mt-1">0</h3>
+                    </div>
+                </div>
+
+                <!-- FILA 3: Ventas por periodo rápido + Top/Recientes -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- KPIs rápidos -->
                     <div class="col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
@@ -963,6 +990,22 @@
             }
         }
 
+        window.addEventListener('focus', async () => {
+            if (document.getElementById('product-form-container') && !document.getElementById('product-form-container').classList.contains('hidden')) return;
+            try {
+                const res = await fetch('/api/data/' + STORE_ID);
+                if (res.ok) {
+                    const cloudData = await res.json();
+                    inventory = cloudData.inventory || []; 
+                    salesHistory = cloudData.salesHistory || [];
+                    usersDB = cloudData.usersDB || [{ user: 'admin', pass: 'admin123', role: 'admin' }];
+                    customersDB = cloudData.customersDB || [];
+                    if (!document.getElementById('tab-inventory').classList.contains('hidden')) renderInventory();
+                    if (!document.getElementById('tab-dashboard').classList.contains('hidden')) renderDashboard();
+                }
+            } catch(e) { console.error("Error auto-sync on focus:", e); }
+        });
+
         window.onload = async () => {
             const statusLabel = document.getElementById('login-status');
             try {
@@ -1290,7 +1333,15 @@
                 prods.forEach(prod => {
                     const recBadge = prod.isRecurring && prod.stock <= 0 ? `<div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow z-10 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span>URGENTE</div>` : '';
                     const borderClass = prod.isRecurring && prod.stock <= 0 ? 'border-2 border-red-500 shadow-md' : 'border';
-                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1"><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'}</span><span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    let fbBadge = '';
+                    if(prod.publishedAt) {
+                        const pDate = new Date(prod.publishedAt);
+                        const diffD = Math.ceil(Math.abs(new Date() - pDate) / (1000 * 60 * 60 * 24));
+                        const left = 15 - diffD;
+                        if(left <= 0) fbBadge = `<span class="text-[10px] text-white bg-red-600 font-bold px-2 rounded animate-pulse">FB: Caducado</span>`;
+                        else fbBadge = `<span class="text-[10px] ${left<=3 ? 'text-white bg-orange-500 font-bold' : 'text-gray-600 bg-gray-200'} px-2 rounded">FB: ${left}d</span>`;
+                    }
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1">${fbBadge}<span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'} | Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
                 list.innerHTML = htmlStr;
             } else {
@@ -1299,7 +1350,15 @@
                 prods.forEach(prod => {
                     const recBadge = prod.isRecurring && prod.stock <= 0 ? `<span class="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded ml-2 shadow-sm font-bold animate-pulse">URGENTE</span>` : '';
                     const borderClass = prod.isRecurring && prod.stock <= 0 ? 'border-2 border-red-500' : 'border';
-                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    let fbBadge = '';
+                    if(prod.publishedAt) {
+                        const pDate = new Date(prod.publishedAt);
+                        const diffD = Math.ceil(Math.abs(new Date() - pDate) / (1000 * 60 * 60 * 24));
+                        const left = 15 - diffD;
+                        if(left <= 0) fbBadge = `<span class="text-[10px] text-white bg-red-600 font-bold px-1.5 rounded animate-pulse ml-2">FB: Caducado</span>`;
+                        else fbBadge = `<span class="text-[10px] ${left<=3 ? 'text-white bg-orange-500 font-bold' : 'text-gray-600 bg-gray-200'} px-1.5 rounded ml-2">FB: ${left}d</span>`;
+                    }
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock} ${fbBadge}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
                 list.innerHTML = htmlStr;
             }
@@ -1307,7 +1366,9 @@
         document.getElementById('product-form').addEventListener('submit', function (e) {
             e.preventDefault();
             const id = document.getElementById('prod-id').value || 'PRD-' + Date.now();
-            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, isRecurring: document.getElementById('prod-recurring').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now() };
+            let oldProd = inventory.find(p => p.id === id);
+            const pubAt = oldProd && oldProd.publishedAt ? oldProd.publishedAt : new Date().toISOString();
+            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, isRecurring: document.getElementById('prod-recurring').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now(), publishedAt: pubAt };
             const idx = inventory.findIndex(p => p.id === id); if (idx > -1) { inventory.splice(idx, 1); inventory.unshift(np); } else inventory.unshift(np);
             // Guardar categoría nueva en la lista persistente
             saveCategoryIfNew(np.category);
@@ -2442,6 +2503,46 @@
             document.getElementById('dash-total-profit').innerText = _fmt(totalProfit, curr);
             document.getElementById('dash-filter-label').innerText = filterLabel;
             document.getElementById('dash-sales-count').innerText = `${filteredSales.length} ventas`;
+
+            // --- Nuevas Métricas Avanzadas ---
+            const totalTickets = filteredSales.filter(s => s.status !== 'ANULADA').length;
+            const avgTicket = totalTickets > 0 ? (totalSold / totalTickets) : 0;
+            if(document.getElementById('dash-ticket-avg')) document.getElementById('dash-ticket-avg').innerText = _fmt(avgTicket, curr);
+            
+            const salesByDateDetailed = {};
+            const startDate = start ? new Date(start) : null;
+            const endDate = end ? new Date(end) : null;
+            
+            filteredSales.filter(s => s.status !== 'ANULADA').forEach(s => {
+                const d = new Date(s.date).toISOString().split('T')[0];
+                salesByDateDetailed[d] = (salesByDateDetailed[d] || 0) + s.total;
+            });
+            
+            let bestDay = { date: '-', val: 0 };
+            let worstDay = { date: '-', val: Infinity };
+            let activeDaysCount = 0;
+            
+            for (const [d, val] of Object.entries(salesByDateDetailed)) {
+                if (val > bestDay.val) bestDay = { date: d, val: val };
+                if (val < worstDay.val && val > 0) worstDay = { date: d, val: val };
+                activeDaysCount++;
+            }
+            if (worstDay.val === Infinity) worstDay = { date: '-', val: 0 };
+            
+            let zeroDays = 0;
+            if (startDate && endDate) {
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                zeroDays = Math.max(0, diffDays - activeDaysCount);
+            }
+            
+            if(document.getElementById('dash-best-day-val')) {
+                document.getElementById('dash-best-day-val').innerText = _fmt(bestDay.val, curr);
+                document.getElementById('dash-best-day-date').innerText = bestDay.date !== '-' ? new Date(bestDay.date + 'T12:00:00').toLocaleDateString('es-HN') : '-';
+                document.getElementById('dash-worst-day-val').innerText = _fmt(worstDay.val, curr);
+                document.getElementById('dash-worst-day-date').innerText = worstDay.date !== '-' ? new Date(worstDay.date + 'T12:00:00').toLocaleDateString('es-HN') : '-';
+                document.getElementById('dash-zero-days').innerText = (startDate && endDate) ? zeroDays : 'N/A';
+            }
 
             // --- ROW 2: KPIs de tiempo real (siempre calculados sobre salesHistory completo) ---
             const now = new Date();
