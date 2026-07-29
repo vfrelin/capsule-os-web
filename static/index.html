@@ -2418,7 +2418,7 @@
             return sales.filter(s => s.status !== 'ANULADA').reduce((acc, s) => acc + s.total, 0);
         }
         function _fmt(val, curr) {
-            return `${curr} ${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            return `${curr} ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         function _toDateStr(d) { // YYYY-MM-DD
             return d.toISOString().split('T')[0];
@@ -2510,12 +2510,14 @@
             if(document.getElementById('dash-ticket-avg')) document.getElementById('dash-ticket-avg').innerText = _fmt(avgTicket, curr);
             
             const salesByDateDetailed = {};
-            const startDate = start ? new Date(start) : null;
-            const endDate = end ? new Date(end) : null;
+            const startDate = startVal ? new Date(startVal) : null;
+            const endDate = endVal ? new Date(endVal) : null;
             
             filteredSales.filter(s => s.status !== 'ANULADA').forEach(s => {
-                const d = new Date(s.date).toISOString().split('T')[0];
-                salesByDateDetailed[d] = (salesByDateDetailed[d] || 0) + s.total;
+                try {
+                    const d = new Date(s.date).toISOString().split('T')[0];
+                    salesByDateDetailed[d] = (salesByDateDetailed[d] || 0) + s.total;
+                } catch(e) { console.error("Invalid date for sale", s); }
             });
             
             let bestDay = { date: '-', val: 0 };
