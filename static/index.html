@@ -1033,7 +1033,7 @@
                             needsSync = true;
                         }
                         if (!p.box && p.desc) {
-                            const match = p.desc.match(/caja\s*[:#\-]?\s*([a-zA-Z0-9]+)/i);
+                            const match = p.desc.match(/caja\s*[:#\-]?\s*([a-zA-Z0-9\-\#]+)/i);
                             if (match && match[1]) {
                                 p.box = match[1].toUpperCase();
                                 needsSync = true;

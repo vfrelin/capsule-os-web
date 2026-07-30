@@ -106,7 +106,7 @@ def save_data(data: AppData):
                 desc = p.get("desc", "")
                 box = p.get("box", "")
                 if not box and desc:
-                    match = re.search(r'caja\s*[:#\-]?\s*([a-zA-Z0-9]+)', str(desc), re.IGNORECASE)
+                    match = re.search(r'caja\s*[:#\-]?\s*([a-zA-Z0-9\-\#]+)', str(desc), re.IGNORECASE)
                     if match:
                         p["box"] = match.group(1).upper()
                         

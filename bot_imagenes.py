@@ -113,18 +113,21 @@ def main(dry_run=True):
                 print(f"  Subiendo {filename} a Cloudinary...")
                 file_path = os.path.join(IMAGES_DIR, filename)
                 url = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
-                with open(file_path, 'rb') as f:
-                    response = requests.post(url, data={'upload_preset': upload_preset}, files={'file': f})
-                    
-                if response.status_code == 200:
-                    secure_url = response.json().get('secure_url')
-                    print(f"  Éxito: {secure_url}")
-                    
-                    # Actualizar en memoria
-                    matched_prod[field_name] = secure_url
-                    updates += 1
-                else:
-                    print(f"  Error subiendo: {response.text}")
+                try:
+                    with open(file_path, 'rb') as f:
+                        response = requests.post(url, data={'upload_preset': upload_preset}, files={'file': f}, timeout=15)
+                        
+                    if response.status_code == 200:
+                        secure_url = response.json().get('secure_url')
+                        print(f"  Éxito: {secure_url}")
+                        
+                        # Actualizar en memoria
+                        matched_prod[field_name] = secure_url
+                        updates += 1
+                    else:
+                        print(f"  Error subiendo: {response.text}")
+                except Exception as e:
+                    print(f"  Error de conexión/timeout subiendo la imagen: {e}")
         else:
             print(f"Sin coincidencia para: {filename} (Slug buscado: {file_slug})")
             
