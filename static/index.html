@@ -2515,7 +2515,8 @@
             
             filteredSales.filter(s => s.status !== 'ANULADA').forEach(s => {
                 try {
-                    const d = new Date(s.date).toISOString().split('T')[0];
+                    const sd = new Date(s.date);
+                    const d = sd.getFullYear() + '-' + String(sd.getMonth() + 1).padStart(2, '0') + '-' + String(sd.getDate()).padStart(2, '0');
                     salesByDateDetailed[d] = (salesByDateDetailed[d] || 0) + s.total;
                 } catch(e) { console.error("Invalid date for sale", s); }
             });
@@ -2627,7 +2628,7 @@
             if (dashProductsChart) dashProductsChart.destroy();
 
             const salesByDate = {};
-            [...filteredSales].reverse().forEach(s => {
+            [...filteredSales].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(s => {
                 if(s.status === 'ANULADA') return;
                 const d = new Date(s.date).toLocaleDateString('es-HN', { month: 'short', day: 'numeric' });
                 salesByDate[d] = (salesByDate[d] || 0) + s.total;
