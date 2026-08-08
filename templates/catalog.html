@@ -192,10 +192,9 @@
                     <input id="catalog-search" type="text" placeholder="Buscar productos..." oninput="renderCatalog()"
                         class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition text-sm">
                 </div>
-                <!-- Categories Dropdown -->
-                <select id="cat-dropdown" onchange="setCategory(this.value)"
-                    class="bg-gray-50 border border-gray-200 py-2.5 px-3 rounded-xl outline-none font-semibold text-sm w-full sm:w-auto min-w-[180px] focus:border-indigo-500 transition">
-                </select>
+                <!-- Categories Chips -->
+                <nav id="cat-chips" class="flex overflow-x-auto gap-2 no-scrollbar py-1 w-full sm:w-auto items-center flex-grow" style="scroll-snap-type: x mandatory;">
+                </nav>
                 <!-- Sort -->
                 <select id="catalog-sort" onchange="renderCatalog()"
                     class="bg-gray-50 border border-gray-200 py-2.5 px-3 rounded-xl outline-none font-semibold text-sm w-full sm:w-auto focus:border-indigo-500 transition">
@@ -440,8 +439,11 @@
                 </button>
             </div>
         </div>
-    </div>
+    <!-- ========== TOASTS ========== -->
+    <div id="toast-container" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[300] flex flex-col gap-2 pointer-events-none w-max max-w-[90%]"></div>
 
+    <!-- FsLightbox para la Galería con Zoom -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fslightbox/3.3.1/index.js"></script>
     <script>
         // ============================================================
         // GLOBALS
@@ -560,21 +562,45 @@
         // ============================================================
         function renderCategories() {
             const cats = ['Todos', ...new Set(inventory.filter(p => p.isPublic !== false && p.stock > 0).map(p => p.category))];
-            document.getElementById('cat-dropdown').innerHTML = cats.map(c =>
-                `<option value="${c}" ${currentCategory === c ? 'selected' : ''}>${c === 'Todos' ? '🛒 Todas las Categorías' : '📁 ' + c}</option>`
-            ).join('');
+            const chips = document.getElementById('cat-chips');
+            if(chips) {
+                chips.innerHTML = cats.map(c =>
+                    `<button onclick="setCategory('${c}')" style="scroll-snap-align: start;" class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold border transition-all active:scale-95 ${currentCategory === c ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}">${c === 'Todos' ? 'Todas' : c}</button>`
+                ).join('');
+            }
         }
 
         function setCategory(cat) {
+            if (currentCategory === cat) return; // Evitar recargas innecesarias
             currentCategory = cat;
             renderCategories();
             renderCatalog();
+            showToast(`Mostrando: ${cat === 'Todos' ? 'Todas las categorías' : cat}`, 'info');
             
             // Actualizar URL
             const newUrl = new URL(window.location);
             if (cat === 'Todos') newUrl.searchParams.delete('cat');
             else newUrl.searchParams.set('cat', cat);
             window.history.pushState({}, '', newUrl);
+        }
+
+        // ============================================================
+        // TOASTS
+        // ============================================================
+        function showToast(msg, type = 'success') {
+            const c = document.getElementById('toast-container');
+            if(!c) return;
+            const t = document.createElement('div');
+            const bg = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-indigo-600');
+            t.className = `${bg} text-white px-5 py-3 rounded-full shadow-2xl font-bold text-sm transform transition-all duration-300 translate-y-10 opacity-0 flex items-center gap-2 border border-white/20`;
+            const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
+            t.innerHTML = `<i class="fa-solid ${icon}"></i> ${msg}`;
+            c.appendChild(t);
+            setTimeout(() => { t.classList.remove('translate-y-10', 'opacity-0'); }, 10);
+            setTimeout(() => { 
+                t.classList.add('translate-y-10', 'opacity-0'); 
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
         }
 
         function setCatalogView(view) {
@@ -712,10 +738,10 @@
             if (modalContent) modalContent.scrollTop = 0;
 
             const imgs = [p.img1, p.img2, p.img3].filter(Boolean);
-            const carouselImgs = imgs.map(src => `<img src="${src}" class="min-w-full aspect-square object-cover snap-center" onerror="this.src='https://via.placeholder.com/400'">`).join('');
+            const carouselImgs = imgs.map(src => `<a data-fslightbox="product-gallery-${p.id}" href="${src}" class="min-w-full aspect-square snap-center block relative cursor-zoom-in group"><img src="${src}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400'"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center"><div class="bg-black/60 text-white rounded-full w-12 h-12 flex items-center justify-center pointer-events-none transform scale-75 group-hover:scale-100 transition shadow-xl backdrop-blur-sm"><i class="fa-solid fa-magnifying-glass-plus text-lg"></i></div></div></a>`).join('');
             const navBtns = imgs.length > 1 ? `
-                <button onclick="scrollModalImages(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition"><i class="fa-solid fa-chevron-left text-sm"></i></button>
-                <button onclick="scrollModalImages(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition"><i class="fa-solid fa-chevron-right text-sm"></i></button>` : '';
+                <button onclick="scrollModalImages(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition z-10"><i class="fa-solid fa-chevron-left text-sm"></i></button>
+                <button onclick="scrollModalImages(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition z-10"><i class="fa-solid fa-chevron-right text-sm"></i></button>` : '';
 
             let videoHtml = '';
             if (p.video) {
@@ -781,6 +807,7 @@
             updateModalPriceUI();
             document.getElementById('product-modal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            if (typeof refreshFsLightbox === 'function') refreshFsLightbox();
         }
 
         function closeProductModal(skipHistory = false) {
