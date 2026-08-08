@@ -219,6 +219,11 @@
 
     <!-- ========== MAIN CATALOG ========== -->
     <main class="max-w-5xl mx-auto px-4 py-6 mb-28">
+        <!-- Active Tag Banner -->
+        <div id="active-tag-banner" class="hidden mb-4 bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center transition-all shadow-sm">
+            <span class="text-sm font-bold text-indigo-800 flex items-center gap-2"><i class="fa-solid fa-tags"></i> Etiqueta: <span id="active-tag-name" class="bg-indigo-600 text-white px-2 py-0.5 rounded-md text-xs uppercase tracking-wide"></span></span>
+            <button onclick="setTag(null)" class="text-indigo-500 hover:text-indigo-800 text-sm font-bold bg-white px-3 py-1 rounded-lg border border-indigo-100 shadow-sm transition active:scale-95"><i class="fa-solid fa-times-circle"></i> Limpiar</button>
+        </div>
         <!-- Loading skeletons (hidden initially for SSR) -->
         <div id="skeleton-grid" class="hidden grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
@@ -453,8 +458,20 @@
         let cart = [];
         let currentView = 'grid';
         let currentCategory = 'Todos';
+        let currentTag = null;
         let currentModalProductId = null;
         let currentModalQty = 1;
+
+        const STOP_WORDS = new Set(['el','la','los','las','un','una','unos','unas','y','e','o','u','de','del','a','al','en','por','con','sin','para','su','sus','tu','tus','mi','mis','como','mas','pero','si','no','que','qué','este','esta','estos','estas','ese','esa','esos','esas','aquel','aquella','aquellos','aquellas','muy','mucho','poco','todo','toda','todos','todas','nada','algo','alguien','nadie','cual','cuales','quien','quienes','donde','cuando','cuanto','cuanta','cuantos','cuantas','porque','hasta','desde','entre','sobre','tras','mediante','durante','hacia','segun','bajo','cabe','contra']);
+
+        function generateTags(text) {
+            if (!text) return [];
+            // Reemplazar acentos temporalmente o eliminarlos, simplificar a alfanumérico
+            const words = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\sñ]/g, ' ').split(/\s+/);
+            const validWords = words.filter(w => w.length > 3 && !STOP_WORDS.has(w) && isNaN(w)); // Ignorar números puros y palabras cortas
+            const unique = [...new Set(validWords)];
+            return unique.slice(0, 5); // Tomar hasta 5 etiquetas
+        }
 
         // Detect store_id from URL: /catalog/{store_id}
         const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -477,6 +494,11 @@
                 settings = {};
             }
 
+            // Generar etiquetas dinámicamente
+            inventory.forEach(p => {
+                p.tags = generateTags(p.name);
+            });
+
             // Inicializar Fuse.js para búsqueda difusa
             fuse = new Fuse(inventory.filter(p => p.isPublic !== false && p.stock > 0), {
                 keys: ['name', 'category', 'desc'],
@@ -484,11 +506,15 @@
                 ignoreLocation: true
             });
 
-            // Deep linking por categoría
+            // Deep linking por categoría o etiqueta
             const urlParams = new URLSearchParams(window.location.search);
             const catParam = urlParams.get('cat');
             if (catParam) {
                 currentCategory = catParam;
+            }
+            const tagParam = urlParams.get('tag');
+            if (tagParam) {
+                currentTag = tagParam;
             }
 
             applyStoreInfo();
@@ -584,6 +610,23 @@
             window.history.pushState({}, '', newUrl);
         }
 
+        function setTag(tag) {
+            currentTag = tag;
+            renderCatalog();
+            
+            // Actualizar URL
+            const newUrl = new URL(window.location);
+            if (tag) {
+                newUrl.searchParams.set('tag', tag);
+                showToast(`Filtrando por: #${tag}`, 'info');
+            } else {
+                newUrl.searchParams.delete('tag');
+                showToast(`Filtro de etiqueta eliminado`, 'success');
+            }
+            window.history.pushState({}, '', newUrl);
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
         // ============================================================
         // TOASTS
         // ============================================================
@@ -624,6 +667,16 @@
             }
             
             if (currentCategory !== 'Todos') prods = prods.filter(p => p.category === currentCategory);
+
+            if (currentTag) prods = prods.filter(p => p.tags && p.tags.includes(currentTag));
+
+            const banner = document.getElementById('active-tag-banner');
+            if (currentTag) {
+                document.getElementById('active-tag-name').innerText = currentTag;
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
 
             if (sort === 'price-asc') prods.sort((a, b) => a.price - b.price);
             else if (sort === 'price-desc') prods.sort((a, b) => b.price - a.price);
@@ -768,6 +821,12 @@
                     <h2 class="text-xl font-black mt-1 leading-tight">${p.name}</h2>
                     <p class="text-3xl font-black text-indigo-600 mt-2">${curr} ${parseFloat(p.price).toFixed(2)}</p>
                     ${p.stock <= 5 ? `<span class="inline-block bg-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full mt-2">¡Solo ${p.stock} en stock!</span>` : `<span class="inline-block bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full mt-2">✓ Disponible</span>`}
+                    
+                    ${p.tags && p.tags.length > 0 ? `
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        ${p.tags.map(t => `<button onclick="closeProductModal(); setTag('${t}')" class="bg-gray-100 hover:bg-indigo-100 hover:text-indigo-700 text-gray-600 text-[11px] font-bold px-3 py-1.5 rounded-full transition active:scale-95"><i class="fa-solid fa-hashtag text-indigo-400"></i> ${t}</button>`).join('')}
+                    </div>` : ''}
+
                     <p class="text-sm text-gray-600 mt-4 leading-relaxed whitespace-pre-wrap">${p.desc || 'Sin descripción.'}</p>
                     ${videoHtml}
                     <!-- Botón de compartir en el contenido -->
