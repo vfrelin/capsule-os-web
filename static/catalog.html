@@ -489,6 +489,8 @@
         function isDirectVideoUrl(url) {
             if (!url) return false;
             return /\.(mp4|mov|webm|ogg|avi)$/i.test(url) ||
+                   /img\.capsuleshop\.net\/.+\/videos?\//i.test(url) ||
+                   /backblazeb2\.com\/.+\/videos?\//i.test(url) ||
                    /res\.cloudinary\.com\/.+\/video\//i.test(url);
         }
         // Convierte URLs de Cloudinary con formato .mov/.avi a .mp4 para compatibilidad con navegadores

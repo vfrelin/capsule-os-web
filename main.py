@@ -1,15 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 from pymongo import MongoClient
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 from datetime import datetime
-import os, logging, csv, io
+import os, logging, csv, io, re, base64, time, unicodedata
+from typing import List, Optional
+from PIL import Image
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
 import google.generativeai as genai
 
 # Configurar logging para ver errores en los logs de Render
@@ -135,8 +136,260 @@ def health_check():
             return {"status": "degraded", "mongo": "error", "detail": str(e)}
     return {"status": "error", "mongo": "disconnected"}
 
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse, Response
-# ... later in the file ...
+# ─────────────────────────────────────────────────────────────
+# ALMACENAMIENTO DE IMÁGENES Y MULTIMEDIA (BACKBLAZE B2 + CDN)
+# ─────────────────────────────────────────────────────────────
+B2_KEY_ID = os.getenv("B2_KEY_ID", "00571e14fccc7420000000001")
+B2_APPLICATION_KEY = os.getenv("B2_APPLICATION_KEY", "K005GdLSkK2H5CvFoXnvKzr27EYXC9c")
+B2_BUCKET_NAME = os.getenv("B2_BUCKET_NAME", "capsule-imagenes")
+CDN_DOMAIN = os.getenv("CDN_DOMAIN", "img.capsuleshop.net")
+
+_b2_auth_cache = {
+    "auth_token": None,
+    "api_url": None,
+    "bucket_id": None,
+    "expires_at": 0
+}
+
+def get_b2_credentials():
+    """Obtiene credenciales de B2 (prioriza variables de entorno y luego settings en MongoDB)"""
+    key_id = os.getenv("B2_KEY_ID", B2_KEY_ID)
+    app_key = os.getenv("B2_APPLICATION_KEY", B2_APPLICATION_KEY)
+    bucket_name = os.getenv("B2_BUCKET_NAME", B2_BUCKET_NAME)
+    cdn_domain = os.getenv("CDN_DOMAIN", CDN_DOMAIN)
+    
+    if MONGO_OK and collection is not None:
+        try:
+            store = collection.find_one({"_id": "main_store"})
+            if store and "settings" in store:
+                s = store["settings"]
+                if s.get("b2KeyId"): key_id = s.get("b2KeyId")
+                if s.get("b2AppKey"): app_key = s.get("b2AppKey")
+                if s.get("b2BucketName"): bucket_name = s.get("b2BucketName")
+                if s.get("cdnDomain"): cdn_domain = s.get("cdnDomain")
+        except Exception:
+            pass
+            
+    return key_id, app_key, bucket_name, cdn_domain
+
+def authorize_b2(force_refresh: bool = False):
+    """Autentica con la API de Backblaze B2 y almacena el token en caché"""
+    global _b2_auth_cache
+    now = time.time()
+    if not force_refresh and _b2_auth_cache["auth_token"] and _b2_auth_cache["expires_at"] > now:
+        return _b2_auth_cache["api_url"], _b2_auth_cache["auth_token"], _b2_auth_cache["bucket_id"]
+        
+    key_id, app_key, bucket_name, _ = get_b2_credentials()
+    if not key_id or not app_key:
+        raise HTTPException(status_code=500, detail="Credenciales de Backblaze B2 no configuradas")
+        
+    auth_string = f"{key_id}:{app_key}"
+    auth_base64 = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+    
+    resp = requests.get(
+        "https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
+        headers={"Authorization": f"Basic {auth_base64}"},
+        timeout=15
+    )
+    
+    if resp.status_code != 200:
+        logger.error(f"Error autorizando B2: {resp.text}")
+        raise HTTPException(status_code=502, detail=f"Error conectando a Backblaze B2: {resp.text}")
+        
+    data = resp.json()
+    bucket_id = data.get("allowed", {}).get("bucketId")
+    
+    if not bucket_id:
+        api_url = data["apiUrl"]
+        auth_token = data["authorizationToken"]
+        account_id = data["accountId"]
+        list_resp = requests.post(
+            f"{api_url}/b2api/v2/b2_list_buckets",
+            headers={"Authorization": auth_token},
+            json={"accountId": account_id, "bucketName": bucket_name},
+            timeout=15
+        )
+        if list_resp.status_code == 200:
+            buckets = list_resp.json().get("buckets", [])
+            for b in buckets:
+                if b.get("bucketName") == bucket_name:
+                    bucket_id = b.get("bucketId")
+                    break
+                    
+    _b2_auth_cache = {
+        "api_url": data["apiUrl"],
+        "auth_token": data["authorizationToken"],
+        "bucket_id": bucket_id,
+        "expires_at": now + 3600 * 20
+    }
+    return _b2_auth_cache["api_url"], _b2_auth_cache["auth_token"], _b2_auth_cache["bucket_id"]
+
+def clean_filename(name: str) -> str:
+    accents = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n',
+               'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N'}
+    for k, v in accents.items():
+        name = name.replace(k, v)
+    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
+    name = re.sub(r'[^a-zA-Z0-9_\.]', '_', name)
+    name = re.sub(r'_+', '_', name).strip('_')
+    return name
+
+def compress_and_optimize_image(file_bytes: bytes, filename: str, max_width: int = 1200, quality: int = 82):
+    """Comprime y optimiza una imagen para web usando Pillow"""
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        if getattr(img, "is_animated", False):
+            return file_bytes, "image/gif", filename
+            
+        if img.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[3] if len(img.split()) > 3 else None)
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+            
+        if img.width > max_width:
+            ratio = max_width / img.width
+            img = img.resize((max_width, int(img.height * ratio)), Image.Resampling.LANCZOS)
+            
+        out_buf = io.BytesIO()
+        img.save(out_buf, format='JPEG', quality=quality, optimize=True)
+        out_buf.seek(0)
+        
+        base_name = os.path.splitext(filename)[0]
+        new_filename = f"{base_name}.jpg"
+        return out_buf.getvalue(), "image/jpeg", new_filename
+    except Exception as e:
+        logger.warning(f"No se pudo comprimir con PIL, usando archivo original: {e}")
+        return file_bytes, "application/octet-stream", filename
+
+def upload_bytes_to_b2(file_bytes: bytes, file_name: str, content_type: str = "image/jpeg", folder: str = "products"):
+    """Sube un buffer a Backblaze B2 y genera la URL pública del CDN"""
+    api_url, auth_token, bucket_id = authorize_b2()
+    
+    url_get_upload = f"{api_url}/b2api/v2/b2_get_upload_url"
+    resp_upload_url = requests.post(
+        url_get_upload,
+        headers={"Authorization": auth_token},
+        json={"bucketId": bucket_id},
+        timeout=15
+    )
+    
+    if resp_upload_url.status_code != 200:
+        logger.warning("Upload URL falló. Forzando refresh de autenticación B2...")
+        api_url, auth_token, bucket_id = authorize_b2(force_refresh=True)
+        resp_upload_url = requests.post(
+            f"{api_url}/b2api/v2/b2_get_upload_url",
+            headers={"Authorization": auth_token},
+            json={"bucketId": bucket_id},
+            timeout=15
+        )
+        if resp_upload_url.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Error obteniendo URL de subida B2: {resp_upload_url.text}")
+            
+    upload_data = resp_upload_url.json()
+    upload_url = upload_data["uploadUrl"]
+    upload_auth_token = upload_data["authorizationToken"]
+    
+    clean_name = clean_filename(file_name)
+    if not clean_name:
+        clean_name = f"upload_{int(time.time())}.jpg"
+        
+    b2_file_path = f"{folder.strip('/')}/{clean_name}" if folder else clean_name
+    
+    headers_upload = {
+        "Authorization": upload_auth_token,
+        "X-Bz-File-Name": b2_file_path,
+        "Content-Type": content_type,
+        "X-Bz-Content-Sha1": "do_not_verify"
+    }
+    
+    resp_upload = requests.post(upload_url, headers=headers_upload, data=file_bytes, timeout=45)
+    if resp_upload.status_code != 200:
+        logger.error(f"Error subiendo archivo a B2: {resp_upload.text}")
+        raise HTTPException(status_code=502, detail=f"Error al subir a Backblaze B2: {resp_upload.text}")
+        
+    _, _, bucket_name, cdn_domain = get_b2_credentials()
+    
+    if cdn_domain:
+        clean_domain = cdn_domain.replace('https://', '').replace('http://', '').strip('/')
+        public_url = f"https://{clean_domain}/file/{bucket_name}/{b2_file_path}"
+    else:
+        public_url = f"https://f005.backblazeb2.com/file/{bucket_name}/{b2_file_path}"
+        
+    return public_url, b2_file_path
+
+@app.post("/api/upload")
+async def upload_file(
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
+    folder: str = Form("products")
+):
+    """Endpoint unificado para subir 1 o múltiples imágenes/videos a Backblaze B2"""
+    upload_list = []
+    if files:
+        upload_list.extend(files)
+    if file and file not in upload_list:
+        upload_list.append(file)
+        
+    if not upload_list:
+        raise HTTPException(status_code=400, detail="No se enviaron archivos para subir")
+        
+    results = []
+    for f in upload_list:
+        content = await f.read()
+        filename = f.filename or f"upload_{int(time.time())}.jpg"
+        mime = f.content_type or "image/jpeg"
+        
+        # Optimizar si es imagen
+        if mime.startswith("image/"):
+            optimized_bytes, final_mime, final_filename = compress_and_optimize_image(content, filename)
+        else:
+            optimized_bytes = content
+            final_mime = mime
+            final_filename = filename
+            
+        public_url, b2_path = upload_bytes_to_b2(optimized_bytes, final_filename, final_mime, folder=folder)
+        results.append({
+            "url": public_url,
+            "path": b2_path,
+            "original_filename": filename,
+            "size": len(optimized_bytes)
+        })
+        
+    return {
+        "status": "success",
+        "url": results[0]["url"] if results else "",
+        "urls": [r["url"] for r in results],
+        "files": results
+    }
+
+@app.get("/api/storage/status")
+def get_storage_status():
+    """Diagnóstico de la conexión con Backblaze B2 y CDN"""
+    key_id, _, bucket_name, cdn_domain = get_b2_credentials()
+    try:
+        api_url, auth_token, bucket_id = authorize_b2(force_refresh=True)
+        return {
+            "status": "connected",
+            "provider": "Backblaze B2",
+            "bucket_name": bucket_name,
+            "bucket_id": bucket_id,
+            "cdn_domain": cdn_domain,
+            "key_id_prefix": key_id[:6] + "..." if key_id else "none",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error comprobando estado de B2: {e}")
+        return {
+            "status": "error",
+            "provider": "Backblaze B2",
+            "bucket_name": bucket_name,
+            "cdn_domain": cdn_domain,
+            "detail": str(e)
+        }
 
 # Endpoints de SEO (Robots y Sitemap)
 @app.get("/robots.txt", response_class=PlainTextResponse)

@@ -12,7 +12,6 @@
     <script src="https://cdn.tailwindcss.com?plugins=line-clamp"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -493,37 +492,59 @@
                             </label>
                         </div>
                         <div class="md:col-span-4 space-y-3 mt-2">
-                            <label class="block text-xs font-bold mb-1"><i class="fa-solid fa-images text-indigo-500 mr-1"></i>Imágenes del Producto</label>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-bold"><i class="fa-solid fa-images text-indigo-500 mr-1"></i>Imágenes del Producto</label>
+                                <button type="button" onclick="document.getElementById('file-prod-batch').click()" id="btn-batch-upload" class="text-[11px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold px-2.5 py-1 rounded-lg border border-indigo-200 flex items-center gap-1.5 transition shadow-sm">
+                                    <i class="fa-solid fa-layer-group text-indigo-600"></i> Subir Varias Fotos (1-3)
+                                </button>
+                                <input type="file" id="file-prod-batch" accept="image/*" multiple class="hidden" onchange="handleBatchUpload(event)">
+                            </div>
+                            
                             <!-- Imagen 1 -->
                             <div class="flex items-center gap-2">
                                 <img id="prod-img1-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
-                                <input type="url" id="prod-img1" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen Principal">
+                                <input type="url" id="prod-img1" oninput="updateImgPreview('prod-img1')" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen Principal (Backblaze B2 / CDN)">
                                 <button type="button" onclick="swapImages(1, 2)" class="text-gray-400 hover:text-indigo-600 transition" title="Bajar"><i class="fa-solid fa-arrow-down"></i></button>
-                                <button type="button" onclick="uploadToCloudinary('prod-img1')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
+                                <input type="file" id="file-prod-img1" accept="image/*" class="hidden" onchange="handleSingleUpload(event, 'prod-img1')">
+                                <button type="button" id="btn-upload-prod-img1" onclick="document.getElementById('file-prod-img1').click()" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Subir
+                                </button>
                             </div>
+                            
                             <!-- Imagen 2 -->
                             <div class="flex items-center gap-2">
                                 <img id="prod-img2-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
-                                <input type="url" id="prod-img2" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 2 (Opcional)">
+                                <input type="url" id="prod-img2" oninput="updateImgPreview('prod-img2')" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 2 (Opcional)">
                                 <div class="flex flex-col">
                                     <button type="button" onclick="swapImages(2, 1)" class="text-gray-400 hover:text-indigo-600 transition" title="Subir"><i class="fa-solid fa-arrow-up text-[10px]"></i></button>
                                     <button type="button" onclick="swapImages(2, 3)" class="text-gray-400 hover:text-indigo-600 transition" title="Bajar"><i class="fa-solid fa-arrow-down text-[10px]"></i></button>
                                 </div>
-                                <button type="button" onclick="uploadToCloudinary('prod-img2')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
+                                <input type="file" id="file-prod-img2" accept="image/*" class="hidden" onchange="handleSingleUpload(event, 'prod-img2')">
+                                <button type="button" id="btn-upload-prod-img2" onclick="document.getElementById('file-prod-img2').click()" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Subir
+                                </button>
                             </div>
+                            
                             <!-- Imagen 3 -->
                             <div class="flex items-center gap-2">
                                 <img id="prod-img3-preview" src="" class="w-14 h-14 rounded-lg object-cover border bg-gray-100 hidden">
-                                <input type="url" id="prod-img3" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 3 (Opcional)">
+                                <input type="url" id="prod-img3" oninput="updateImgPreview('prod-img3')" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Imagen 3 (Opcional)">
                                 <button type="button" onclick="swapImages(3, 2)" class="text-gray-400 hover:text-indigo-600 transition" title="Subir"><i class="fa-solid fa-arrow-up"></i></button>
-                                <button type="button" onclick="uploadToCloudinary('prod-img3')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir</button>
+                                <input type="file" id="file-prod-img3" accept="image/*" class="hidden" onchange="handleSingleUpload(event, 'prod-img3')">
+                                <button type="button" id="btn-upload-prod-img3" onclick="document.getElementById('file-prod-img3').click()" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1.5 flex-shrink-0">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Subir
+                                </button>
                             </div>
                         </div>
+                        
                         <div class="md:col-span-4 mt-2 space-y-2">
                             <label class="block text-xs font-bold mb-1"><i class="fa-solid fa-video text-indigo-500 mr-1"></i>Video del Producto</label>
                             <div class="flex items-center gap-3">
-                                <input type="url" id="prod-video" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Video (Cloudinary, YouTube, etc.)">
-                                <button type="button" onclick="uploadVideoToCloudinary()" class="bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-purple-700 transition flex items-center gap-1.5 flex-shrink-0"><i class="fa-solid fa-cloud-arrow-up"></i> Subir Video</button>
+                                <input type="url" id="prod-video" class="flex-grow border rounded p-2 bg-gray-50 outline-none text-xs" placeholder="URL Video (Backblaze B2, YouTube, etc.)">
+                                <input type="file" id="file-prod-video" accept="video/*" class="hidden" onchange="handleVideoUpload(event)">
+                                <button type="button" id="btn-upload-prod-video" onclick="document.getElementById('file-prod-video').click()" class="bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-purple-700 transition flex items-center gap-1.5 flex-shrink-0">
+                                    <i class="fa-solid fa-video"></i> Subir Video
+                                </button>
                             </div>
                             <div id="prod-video-preview" class="hidden">
                                 <video id="prod-video-player" controls class="w-full max-h-48 rounded-lg border bg-black" preload="metadata"></video>
@@ -627,9 +648,15 @@
                                     id="set-about" rows="2"
                                     class="w-full border-b-2 p-2 bg-transparent outline-none focus:border-indigo-500"></textarea>
                             </div>
-                            <div><label class="block text-xs font-bold text-gray-500">URL Logo</label><input type="url"
-                                    id="set-logo"
-                                    class="w-full border-b-2 p-2 bg-transparent outline-none focus:border-indigo-500">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500">URL Logo</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="set-logo" class="flex-grow border-b-2 p-2 bg-transparent outline-none focus:border-indigo-500" placeholder="https://...">
+                                    <input type="file" id="file-set-logo" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+                                    <button type="button" id="btn-upload-logo" onclick="document.getElementById('file-set-logo').click()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center gap-1 flex-shrink-0">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> Subir Logo
+                                    </button>
+                                </div>
                             </div>
                             <div><label class="block text-xs font-bold text-gray-500">RTN Tienda</label><input
                                     type="text" id="set-rtn"
@@ -683,14 +710,46 @@
                                     id="set-yt" class="w-full border-b-2 p-2 outline-none"></div>
                         </div>
                     </div>
-                    <!-- Cloudinary Config -->
+                    <!-- Cloud Storage Config (Backblaze B2 + Cloudflare CDN) -->
                     <div class="bg-white p-5 rounded-xl shadow-sm border lg:col-span-2">
-                        <h3 class="font-bold mb-1 text-indigo-700 text-sm uppercase"><i class="fa-solid fa-cloud mr-2"></i>Cloudinary (Imágenes en la Nube)</h3>
-                        <p class="text-[10px] text-gray-400 mb-4">Configura tu cuenta gratuita de Cloudinary para subir imágenes directamente desde el formulario de productos. <a href="https://cloudinary.com/users/register_free" target="_blank" class="text-indigo-500 underline">Crear cuenta gratis</a></p>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500">Cloud Name</label><input type="text" id="set-cloudinary-name" class="w-full border-b-2 p-2 outline-none focus:border-indigo-500" placeholder="ej: dxyz1abc2"></div>
-                            <div><label class="block text-xs font-bold text-gray-500">Upload Preset (Unsigned)</label><input type="text" id="set-cloudinary-preset" class="w-full border-b-2 p-2 outline-none focus:border-indigo-500" placeholder="ej: ml_default"></div>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                            <div>
+                                <h3 class="font-bold text-indigo-700 text-sm uppercase flex items-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-up text-indigo-600"></i> Almacenamiento en la Nube (Backblaze B2 + CDN)
+                                </h3>
+                                <p class="text-[11px] text-gray-500 mt-0.5">
+                                    Tus imágenes y videos se suben y procesan de forma segura a través de Backblaze B2 y se entregan a máxima velocidad con Cloudflare CDN.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="storage-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> B2 Conectado
+                                </span>
+                                <button type="button" onclick="testStorageConnection()" id="btn-test-storage" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Probar Conexión
+                                </button>
+                            </div>
                         </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-gray-50 p-4 rounded-xl border">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500">Bucket de Almacenamiento</label>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <i class="fa-solid fa-database text-indigo-500"></i>
+                                    <input type="text" id="set-b2-bucket" value="capsule-imagenes" class="w-full bg-transparent border-b p-1 text-xs font-mono font-bold text-gray-700 outline-none" readonly>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Bucket activo en Backblaze B2</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500">Dominio CDN de Entrega</label>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <i class="fa-solid fa-bolt text-amber-500"></i>
+                                    <input type="text" id="set-cdn-domain" value="img.capsuleshop.net" class="w-full bg-transparent border-b p-1 text-xs font-mono font-bold text-gray-700 outline-none" readonly>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Entrega ultrarrápida mediante Cloudflare</p>
+                            </div>
+                        </div>
+                        <div id="storage-test-result" class="text-xs mt-3 hidden"></div>
                     </div>
                 </div>
 
@@ -1236,8 +1295,32 @@
         }
         function loadSettings() {
             const s = JSON.parse(localStorage.getItem('capsuleSettings')) || { currency: 'L' };
-            document.getElementById('set-name').value = s.name || ''; document.getElementById('set-logo').value = s.logo || ''; document.getElementById('set-about').value = s.about || ''; document.getElementById('set-currency').value = s.currency || 'L'; document.getElementById('set-whatsapp').value = s.whatsapp || ''; document.getElementById('set-address').value = s.address || ''; document.getElementById('set-maps-url').value = s.mapsUrl || ''; document.getElementById('set-rtn').value = s.rtn || ''; document.getElementById('set-fb').value = s.fb || ''; document.getElementById('set-ig').value = s.ig || ''; document.getElementById('set-tk').value = s.tk || ''; document.getElementById('set-yt').value = s.yt || ''; document.getElementById('set-cloudinary-name').value = s.cloudinaryName || ''; document.getElementById('set-cloudinary-preset').value = s.cloudinaryPreset || ''; if(document.getElementById('set-sales-goal')) document.getElementById('set-sales-goal').value = s.dailySalesGoal || 1000; document.getElementById('nav-store-name').innerText = s.name || 'Capsule'; if (s.logo) document.getElementById('nav-logo').src = s.logo; document.getElementById('cat-store-name').innerText = s.name || ''; if (s.logo) document.getElementById('cat-logo').src = s.logo;
-            let bioHtml = s.about || ''; if (s.address) { if (s.mapsUrl) { bioHtml += `<br><a href="${s.mapsUrl}" target="_blank" class="text-xs text-indigo-400 hover:underline"><i class="fa-solid fa-location-dot"></i> ${s.address}</a>`; } else { bioHtml += `<br><span class="text-xs text-gray-400">${s.address}</span>`; } } document.getElementById('cat-about').innerHTML = bioHtml;
+            document.getElementById('set-name').value = s.name || ''; 
+            document.getElementById('set-logo').value = s.logo || ''; 
+            document.getElementById('set-about').value = s.about || ''; 
+            document.getElementById('set-currency').value = s.currency || 'L'; 
+            document.getElementById('set-whatsapp').value = s.whatsapp || ''; 
+            document.getElementById('set-address').value = s.address || ''; 
+            document.getElementById('set-maps-url').value = s.mapsUrl || ''; 
+            document.getElementById('set-rtn').value = s.rtn || ''; 
+            document.getElementById('set-fb').value = s.fb || ''; 
+            document.getElementById('set-ig').value = s.ig || ''; 
+            document.getElementById('set-tk').value = s.tk || ''; 
+            document.getElementById('set-yt').value = s.yt || ''; 
+            if(document.getElementById('set-sales-goal')) document.getElementById('set-sales-goal').value = s.dailySalesGoal || 1000; 
+            document.getElementById('nav-store-name').innerText = s.name || 'Capsule'; 
+            if (s.logo) document.getElementById('nav-logo').src = s.logo; 
+            document.getElementById('cat-store-name').innerText = s.name || ''; 
+            if (s.logo) document.getElementById('cat-logo').src = s.logo;
+            let bioHtml = s.about || ''; 
+            if (s.address) { 
+                if (s.mapsUrl) { 
+                    bioHtml += `<br><a href="${s.mapsUrl}" target="_blank" class="text-xs text-indigo-400 hover:underline"><i class="fa-solid fa-location-dot"></i> ${s.address}</a>`; 
+                } else { 
+                    bioHtml += `<br><span class="text-xs text-gray-400">${s.address}</span>`; 
+                } 
+            } 
+            document.getElementById('cat-about').innerHTML = bioHtml;
 
             let socialHtml = '';
             if (s.whatsapp) socialHtml += `<a href="https://wa.me/${s.whatsapp.replace(/\D/g, '')}" target="_blank" class="text-green-500 hover:scale-125 transition transform"><i class="fa-brands fa-whatsapp"></i></a>`;
@@ -1246,10 +1329,29 @@
             if (s.tk) socialHtml += `<a href="${s.tk}" target="_blank" class="text-gray-800 hover:scale-125 transition transform"><i class="fa-brands fa-tiktok"></i></a>`;
             if (s.yt) socialHtml += `<a href="${s.yt}" target="_blank" class="text-red-600 hover:scale-125 transition transform"><i class="fa-brands fa-youtube"></i></a>`;
             document.getElementById('cat-social-links').innerHTML = socialHtml;
+            
+            // Comprobar estado de almacenamiento en nube (B2 + CDN)
+            checkStorageStatusOnLoad();
         }
         document.getElementById('settings-form').addEventListener('submit', function (e) {
             e.preventDefault();
-            const s = { name: document.getElementById('set-name').value, logo: document.getElementById('set-logo').value, about: document.getElementById('set-about').value, currency: document.getElementById('set-currency').value, whatsapp: document.getElementById('set-whatsapp').value, address: document.getElementById('set-address').value, mapsUrl: document.getElementById('set-maps-url').value, rtn: document.getElementById('set-rtn').value, fb: document.getElementById('set-fb').value, ig: document.getElementById('set-ig').value, tk: document.getElementById('set-tk').value, yt: document.getElementById('set-yt').value, cloudinaryName: document.getElementById('set-cloudinary-name').value, cloudinaryPreset: document.getElementById('set-cloudinary-preset').value, dailySalesGoal: Number(document.getElementById('set-sales-goal')?.value) || 1000 };
+            const s = { 
+                name: document.getElementById('set-name').value, 
+                logo: document.getElementById('set-logo').value, 
+                about: document.getElementById('set-about').value, 
+                currency: document.getElementById('set-currency').value, 
+                whatsapp: document.getElementById('set-whatsapp').value, 
+                address: document.getElementById('set-address').value, 
+                mapsUrl: document.getElementById('set-maps-url').value, 
+                rtn: document.getElementById('set-rtn').value, 
+                fb: document.getElementById('set-fb').value, 
+                ig: document.getElementById('set-ig').value, 
+                tk: document.getElementById('set-tk').value, 
+                yt: document.getElementById('set-yt').value, 
+                imageStorage: 'backblaze_b2',
+                cdnDomain: 'img.capsuleshop.net',
+                dailySalesGoal: Number(document.getElementById('set-sales-goal')?.value) || 1000 
+            };
             localStorage.setItem('capsuleSettings', JSON.stringify(s));
             loadSettings(); syncToCloud();
             const b = document.getElementById('save-btn'); const ot = b.innerHTML;
@@ -1376,19 +1478,28 @@
         });
 
         // ─────────────────────────────────────────────────────────────
-        // CLOUDINARY UPLOAD
+        // ALMACENAMIENTO BACKBLAZE B2 & CLOUDFLARE CDN
         // ─────────────────────────────────────────────────────────────
         function updateImgPreview(fieldId) {
             const input = document.getElementById(fieldId);
             const preview = document.getElementById(fieldId + '-preview');
-            if (input.value) { preview.src = input.value; preview.classList.remove('hidden'); }
-            else { preview.src = ''; preview.classList.add('hidden'); }
+            if (input && preview) {
+                if (input.value) { 
+                    preview.src = input.value; 
+                    preview.classList.remove('hidden'); 
+                } else { 
+                    preview.src = ''; 
+                    preview.classList.add('hidden'); 
+                }
+            }
         }
+
         function swapImages(a, b) {
             let inputA = document.getElementById('prod-img' + a);
             let inputB = document.getElementById('prod-img' + b);
             let previewA = document.getElementById('prod-img' + a + '-preview');
             let previewB = document.getElementById('prod-img' + b + '-preview');
+            if (!inputA || !inputB || !previewA || !previewB) return;
             
             // Swap URLs
             let tempVal = inputA.value;
@@ -1407,92 +1518,240 @@
             if (aHidden) previewB.classList.add('hidden'); else previewB.classList.remove('hidden');
         }
 
-        function uploadToCloudinary(fieldId) {
-            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
-            const cloudName = s.cloudinaryName;
-            const preset = s.cloudinaryPreset;
-            if (!cloudName || !preset) {
-                alert('⚠️ Configura primero tu cuenta de Cloudinary en la sección Ajustes.\n\n1. Ve a Ajustes\n2. Busca la sección "Cloudinary"\n3. Ingresa tu Cloud Name y Upload Preset\n4. Guarda los ajustes');
-                return;
-            }
-            cloudinary.openUploadWidget({
-                cloudName: cloudName,
-                uploadPreset: preset,
-                sources: ['local', 'url', 'camera'],
-                multiple: false,
-                maxFiles: 1,
-                cropping: true,
-                croppingAspectRatio: 1,
-                showSkipCropButton: true,
-                resourceType: 'image',
-                clientAllowedFormats: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
-                maxImageFileSize: 5000000,
-                folder: 'capsule-products',
-                styles: {
-                    palette: { window: '#FFFFFF', windowBorder: '#4f46e5', tabIcon: '#4f46e5', menuIcons: '#555a5f', textDark: '#000000', textLight: '#FFFFFF', link: '#4f46e5', action: '#22c55e', inactiveTabIcon: '#9ca3af', error: '#ef4444', inProgress: '#4f46e5', complete: '#22c55e', sourceBg: '#f1f5f9' },
-                    fonts: { default: null, "'Inter', sans-serif": { url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap', active: true } }
-                }
-            }, (error, result) => {
-                if (!error && result && result.event === 'success') {
-                    const url = result.info.secure_url;
-                    document.getElementById(fieldId).value = url;
-                    updateImgPreview(fieldId);
-                }
+        // Subir archivo individual al backend (/api/upload -> B2 + CDN)
+        async function uploadFileToServer(file, folder = "products") {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', folder);
+            
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
             });
+            
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({ detail: response.statusText }));
+                throw new Error(errData.detail || 'Error en la subida a B2');
+            }
+            
+            const result = await response.json();
+            return result.url;
         }
+
+        // Manejar subida de una sola imagen (prod-img1, prod-img2, prod-img3)
+        async function handleSingleUpload(event, fieldId) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const btn = document.getElementById('btn-upload-' + fieldId);
+            const preview = document.getElementById(fieldId + '-preview');
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+            
+            try {
+                // Mostrar preview local inmediato
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if (preview) {
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                    }
+                };
+                reader.readAsDataURL(file);
+                
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo...';
+                }
+                
+                const uploadedUrl = await uploadFileToServer(file, 'products');
+                document.getElementById(fieldId).value = uploadedUrl;
+                updateImgPreview(fieldId);
+                
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-check text-emerald-300"></i> Listo';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnHtml;
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error("Error subiendo imagen:", err);
+                alert('❌ Error al subir imagen a Backblaze B2: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml;
+                }
+            } finally {
+                event.target.value = ''; // Permite volver a seleccionar el mismo archivo
+            }
+        }
+
+        // Manejar subida en lote (1 a 3 fotos simultáneamente)
+        async function handleBatchUpload(event) {
+            const files = Array.from(event.target.files);
+            if (!files || files.length === 0) return;
+            
+            const btn = document.getElementById('btn-batch-upload');
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+            
+            if (files.length > 3) {
+                alert('⚠️ Seleccionaste ' + files.length + ' imágenes. Solo se subirán las primeras 3.');
+            }
+            
+            const filesToUpload = files.slice(0, 3);
+            
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> Subiendo ${filesToUpload.length} fotos a B2...`;
+                }
+                
+                const formData = new FormData();
+                filesToUpload.forEach(f => formData.append('files', f));
+                formData.append('folder', 'products');
+                
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({ detail: response.statusText }));
+                    throw new Error(err.detail || 'Error en la subida');
+                }
+                
+                const data = await response.json();
+                const urls = data.urls || (data.url ? [data.url] : []);
+                
+                // Asignar secuencialmente a img1, img2, img3
+                urls.forEach((url, idx) => {
+                    const fieldId = `prod-img${idx + 1}`;
+                    const input = document.getElementById(fieldId);
+                    if (input) {
+                        input.value = url;
+                        updateImgPreview(fieldId);
+                    }
+                });
+                
+                if (btn) {
+                    btn.innerHTML = `<i class="fa-solid fa-check text-emerald-600"></i> ${urls.length} fotos subidas`;
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnHtml;
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error("Error en subida por lote:", err);
+                alert('❌ Error al subir imágenes por lote: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml;
+                }
+            } finally {
+                event.target.value = '';
+            }
+        }
+
+        // Manejar subida de Logo en Ajustes
+        async function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const btn = document.getElementById('btn-upload-logo');
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+            
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo...';
+                }
+                
+                const uploadedUrl = await uploadFileToServer(file, 'logos');
+                document.getElementById('set-logo').value = uploadedUrl;
+                
+                // Actualizar logos en vivo
+                const navLogo = document.getElementById('nav-logo');
+                const catLogo = document.getElementById('cat-logo');
+                if (navLogo) navLogo.src = uploadedUrl;
+                if (catLogo) catLogo.src = uploadedUrl;
+                
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-check text-emerald-300"></i> Listo';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnHtml;
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error("Error subiendo logo:", err);
+                alert('❌ Error al subir logo: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml;
+                }
+            } finally {
+                event.target.value = '';
+            }
+        }
+
         // ─────────────────────────────────────────────────────────────
-        // VIDEO UPLOAD VIA CLOUDINARY
+        // VIDEO HANDLING
         // ─────────────────────────────────────────────────────────────
         function isDirectVideoUrl(url) {
             if (!url) return false;
             return /\.(mp4|mov|webm|ogg|avi)$/i.test(url) ||
+                   /img\.capsuleshop\.net\/.+\/videos?\//i.test(url) ||
+                   /backblazeb2\.com\/.+\/videos?\//i.test(url) ||
                    /res\.cloudinary\.com\/.+\/video\//i.test(url);
         }
-        // Convierte URLs de Cloudinary con formato .mov/.avi a .mp4 para compatibilidad con navegadores
+
         function getPlayableVideoUrl(url) {
             if (!url) return url;
-            // Si es una URL de Cloudinary con formato no soportado por navegadores, convertir a .mp4
             if (/res\.cloudinary\.com\/.+\/video\//i.test(url)) {
-                // Reemplazar extensión .mov, .avi, .wmv, .mkv por .mp4
                 url = url.replace(/\.(mov|avi|wmv|mkv)(\?.*)?$/i, '.mp4$2');
-                // Agregar transformación f_mp4 si no tiene transformaciones
-                // Formato URL Cloudinary: .../upload/[transformaciones/]v1234/folder/file.ext
                 if (!/\/upload\/.*?(f_|vc_)/i.test(url)) {
                     url = url.replace('/upload/', '/upload/f_mp4,vc_auto/');
                 }
             }
             return url;
         }
-        function uploadVideoToCloudinary() {
-            const s = JSON.parse(localStorage.getItem('capsuleSettings')) || {};
-            const cloudName = s.cloudinaryName;
-            const preset = s.cloudinaryPreset;
-            if (!cloudName || !preset) {
-                alert('⚠️ Configura primero tu cuenta de Cloudinary en la sección Ajustes.\n\n1. Ve a Ajustes\n2. Busca la sección "Cloudinary"\n3. Ingresa tu Cloud Name y Upload Preset\n4. Guarda los ajustes');
-                return;
+
+        async function handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const btn = document.getElementById('btn-upload-prod-video');
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+            
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo Video...';
+                }
+                
+                const uploadedUrl = await uploadFileToServer(file, 'videos');
+                document.getElementById('prod-video').value = uploadedUrl;
+                updateVideoPreview();
+                
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-check text-emerald-300"></i> Video Listo';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnHtml;
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error("Error subiendo video:", err);
+                alert('❌ Error al subir video a Backblaze B2: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml;
+                }
+            } finally {
+                event.target.value = '';
             }
-            cloudinary.openUploadWidget({
-                cloudName: cloudName,
-                uploadPreset: preset,
-                sources: ['local', 'url', 'camera'],
-                multiple: false,
-                maxFiles: 1,
-                resourceType: 'video',
-                clientAllowedFormats: ['mp4', 'mov', 'webm', 'ogg', 'avi'],
-                maxVideoFileSize: 104857600,
-                folder: 'capsule-videos',
-                styles: {
-                    palette: { window: '#FFFFFF', windowBorder: '#7c3aed', tabIcon: '#7c3aed', menuIcons: '#555a5f', textDark: '#000000', textLight: '#FFFFFF', link: '#7c3aed', action: '#22c55e', inactiveTabIcon: '#9ca3af', error: '#ef4444', inProgress: '#7c3aed', complete: '#22c55e', sourceBg: '#f1f5f9' },
-                    fonts: { default: null, "'Inter', sans-serif": { url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap', active: true } }
-                }
-            }, (error, result) => {
-                if (!error && result && result.event === 'success') {
-                    const url = result.info.secure_url;
-                    document.getElementById('prod-video').value = url;
-                    updateVideoPreview();
-                }
-            });
         }
+
         function updateVideoPreview() {
             const url = document.getElementById('prod-video').value;
             const preview = document.getElementById('prod-video-preview');
@@ -1506,6 +1765,89 @@
             }
         }
         document.getElementById('prod-video').addEventListener('input', updateVideoPreview);
+
+        // ─────────────────────────────────────────────────────────────
+        // DIAGNÓSTICO Y ESTADO DE ALMACENAMIENTO (B2 + CDN)
+        // ─────────────────────────────────────────────────────────────
+        async function checkStorageStatusOnLoad() {
+            try {
+                const res = await fetch('/api/storage/status');
+                if (!res.ok) return;
+                const data = await res.json();
+                const badge = document.getElementById('storage-status-badge');
+                if (badge) {
+                    if (data.status === 'connected') {
+                        badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200";
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> B2 Conectado (${data.bucket_name})`;
+                    } else {
+                        badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200";
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> Desconectado`;
+                    }
+                }
+                if (data.bucket_name && document.getElementById('set-b2-bucket')) {
+                    document.getElementById('set-b2-bucket').value = data.bucket_name;
+                }
+                if (data.cdn_domain && document.getElementById('set-cdn-domain')) {
+                    document.getElementById('set-cdn-domain').value = data.cdn_domain;
+                }
+            } catch (e) {
+                console.warn("Storage check offline:", e);
+            }
+        }
+
+        async function testStorageConnection() {
+            const btn = document.getElementById('btn-test-storage');
+            const resDiv = document.getElementById('storage-test-result');
+            const badge = document.getElementById('storage-status-badge');
+            
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando B2...';
+            }
+            if (resDiv) resDiv.classList.add('hidden');
+            
+            const startTime = Date.now();
+            try {
+                const res = await fetch('/api/storage/status');
+                const data = await res.json();
+                const latency = Date.now() - startTime;
+                
+                if (res.ok && data.status === 'connected') {
+                    if (badge) {
+                        badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200";
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> B2 Conectado (${data.bucket_name})`;
+                    }
+                    if (resDiv) {
+                        resDiv.className = "text-xs mt-3 p-3 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 flex items-center justify-between";
+                        resDiv.innerHTML = `
+                            <div>
+                                <span class="font-bold">✅ Conexión Exitosa con Backblaze B2</span>
+                                <div class="text-[11px] text-emerald-700 mt-0.5">Bucket: <b>${data.bucket_name}</b> (ID: ${data.bucket_id}) | CDN: <b>${data.cdn_domain}</b></div>
+                            </div>
+                            <span class="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-mono">${latency}ms</span>
+                        `;
+                        resDiv.classList.remove('hidden');
+                    }
+                } else {
+                    throw new Error(data.detail || 'Fallo en la conexión');
+                }
+            } catch (err) {
+                if (badge) {
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200";
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Error B2`;
+                }
+                if (resDiv) {
+                    resDiv.className = "text-xs mt-3 p-3 bg-red-50 text-red-800 rounded-lg border border-red-200";
+                    resDiv.innerHTML = `❌ <b>Error al conectar con Backblaze B2:</b> ${err.message}`;
+                    resDiv.classList.remove('hidden');
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Probar Conexión';
+                }
+            }
+        }
 
         // ─────────────────────────────────────────────────────────────
         // CATEGORÍAS PERSISTENTES CON DATALIST
