@@ -97,55 +97,13 @@
                 width: 2in;
                 height: 1in;
                 box-sizing: border-box;
-                padding: 3pt;
+                padding: 4pt;
                 display: flex;
-                flex-direction: row;
-                align-items: center;
-                gap: 4pt;
+                flex-direction: column;
+                justify-content: space-between;
                 border: 0.5pt dashed #ccc;
                 overflow: hidden;
-            }
-            .label-left {
-                display: flex;
-                flex-direction: column;
-                align-items: flex-start;
-                flex: 1;
-                min-width: 0;
-            }
-            .label-barcode-img {
-                width: 100%;
-                max-width: 1.1in;
-                height: auto;
-            }
-            .label-text {
-                font-family: Arial, sans-serif;
-                font-size: 6pt;
-                font-weight: bold;
-                line-height: 1.2;
-                margin-top: 2pt;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: 1.1in;
-            }
-            .label-right {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                flex-shrink: 0;
-                width: 0.72in;
-            }
-            .label-visit-text {
-                font-family: Arial, sans-serif;
-                font-size: 5pt;
-                font-weight: bold;
-                text-align: center;
-                margin-bottom: 2pt;
-                line-height: 1.1;
-            }
-            .label-qr-img {
-                width: 0.65in;
-                height: 0.65in;
+                background: #fff;
             }
         }
     </style>
@@ -3655,48 +3613,75 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // RENDER A SINGLE LABEL CELL (returns canvas-based HTML string for preview)
-    // For actual printing we'll generate images into the print sheet.
+    // RENDER A SINGLE LABEL CELL (QR Code + Vertical Short Code + 8-word Title)
     // ─────────────────────────────────────────────────────────────────
     const CATALOG_URL = 'https://www.capsuleshop.net';
 
-    function shortProductLabel(prod) {
-        const box = prod.box ? prod.box.toUpperCase() : '';
-        const words = prod.name.split(/\s+/).slice(0, 5).join(' ');
-        return box ? `${box}- ${words},` : `${words},`;
+    function getProductCode(prod) {
+        if (!prod) return 'CODI00000';
+        let num = String(prod.id).replace(/\D/g, '');
+        if (!num || num.length < 5) {
+            let hash = 0;
+            for (let i = 0; i < prod.id.length; i++) hash = (hash * 31 + prod.id.charCodeAt(i)) & 0x7FFFFFFF;
+            num = String(hash);
+        }
+        return 'CODI' + num.slice(-5);
+    }
+
+    function formatProductTitle(prod) {
+        const box = (prod.box || '').trim().toUpperCase();
+        // Al menos 8-9 palabras para identificar claramente el producto
+        const words = (prod.name || '').trim().split(/\s+/).slice(0, 9).join(' ');
+        const boxPrefix = box ? `${box} - ` : '';
+        return `${boxPrefix}${words},`;
     }
 
     async function buildLabelImageDataURLs(prod) {
-        const ean = generateEAN13(prod.id);
+        const code = getProductCode(prod);
 
-        // ── Barcode via JsBarcode (Más alto y nítido para mejor lectura) ──
-        const barcodeCanvas = document.createElement('canvas');
-        try {
-            JsBarcode(barcodeCanvas, ean, {
-                format: 'EAN13',
-                width: 2.2,
-                height: 70,
-                displayValue: true,
-                fontSize: 13,
-                margin: 4,
-                flat: true,
-                background: '#ffffff',
-                lineColor: '#000000'
-            });
-        } catch(e) { console.error('JsBarcode error', e); }
-        const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
-
-        // ── QR via qrcode-generator (synchronous, browser-native) ──
+        // ── QR Code via qrcode-generator ──
+        // Codifica el ID del producto directamente para detección instantánea en el POS
         let qrDataUrl = '';
         try {
-            const qr = qrcode(0, 'M');   // type=0 (auto), correction level M
-            qr.addData(CATALOG_URL);
+            const qr = qrcode(0, 'M');
+            qr.addData(prod.id);
             qr.make();
-            // createDataURL(cellSize, margin) → base64 PNG
-            qrDataUrl = qr.createDataURL(4, 2);
+            // createDataURL(cellSize, margin)
+            qrDataUrl = qr.createDataURL(5, 1);
         } catch(e) { console.error('QR error', e); }
 
-        return { ean, barcodeDataUrl, qrDataUrl };
+        return { code, qrDataUrl };
+    }
+
+    function buildLabelCellHTML(qrDataUrl, code, labelText, forPrint) {
+        const borderStyle = forPrint ? '' : 'border: 1px dashed #d1d5db;';
+        return `
+            <div style="width:100%;height:100%;box-sizing:border-box;padding:4pt;display:flex;flex-direction:column;justify-content:space-between;background:#fff;${borderStyle}">
+                <!-- Fila Superior: Código Vertical + QR + Enlace Catálogo -->
+                <div style="display:flex;flex-direction:row;align-items:center;gap:4pt;height:0.62in;overflow:hidden;">
+                    <!-- Código vertical -->
+                    <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-family:Arial,sans-serif;font-weight:900;font-size:7.5pt;letter-spacing:0.5px;color:#000;text-align:center;flex-shrink:0;line-height:1;">
+                        ${code}
+                    </div>
+                    <!-- Código QR Cuadrado -->
+                    <div style="flex-shrink:0;width:0.62in;height:0.62in;display:flex;align-items:center;justify-content:center;">
+                        <img src="${qrDataUrl}" style="width:0.62in;height:0.62in;object-fit:contain;" alt="QR">
+                    </div>
+                    <!-- Texto derecho catálogo -->
+                    <div style="display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;padding-left:2pt;">
+                        <div style="font-family:Arial,sans-serif;font-size:6.2pt;font-weight:bold;color:#000;line-height:1.15;">
+                            Visita nuestro catalogo:
+                        </div>
+                        <div style="font-family:Arial,sans-serif;font-size:7.2pt;font-weight:900;color:#000;line-height:1.15;margin-top:3pt;word-break:break-all;">
+                            www.capsuleshop.net
+                        </div>
+                    </div>
+                </div>
+                <!-- Fila Inferior: Caja y Título (con al menos 8 palabras) -->
+                <div style="font-family:Arial,sans-serif;font-size:6.8pt;font-weight:900;line-height:1.15;color:#000;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:0.32in;padding-top:2pt;">
+                    ${labelText}
+                </div>
+            </div>`;
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -3718,9 +3703,9 @@
         container.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">Generando previsualización...</p>';
 
         try {
-            const { ean, barcodeDataUrl, qrDataUrl } = await buildLabelImageDataURLs(prod);
-            const label = shortProductLabel(prod);
-            const cellHtml = buildLabelCellHTML(barcodeDataUrl, qrDataUrl, label, false);
+            const { code, qrDataUrl } = await buildLabelImageDataURLs(prod);
+            const label = formatProductTitle(prod);
+            const cellHtml = buildLabelCellHTML(qrDataUrl, code, label, false);
             container.innerHTML = `
                 <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
                     ${cellHtml}${cellHtml}${cellHtml}${cellHtml}
@@ -3728,21 +3713,6 @@
         } catch(e) {
             container.innerHTML = '<p class="text-xs text-red-400 text-center py-8">Error al generar vista previa.</p>';
         }
-    }
-
-    function buildLabelCellHTML(barcodeDataUrl, qrDataUrl, labelText, forPrint) {
-        const borderStyle = forPrint ? '' : 'border: 1px dashed #d1d5db;';
-        return `
-            <div style="display:flex;flex-direction:row;align-items:center;gap:4px;padding:4px;overflow:hidden;box-sizing:border-box;${borderStyle}">
-                <div style="display:flex;flex-direction:column;align-items:flex-start;flex:1;min-width:0;">
-                    <img src="${barcodeDataUrl}" style="width:100%;max-width:130px;height:auto;" alt="barcode">
-                    <div style="font-family:Arial,sans-serif;font-size:7px;font-weight:bold;line-height:1.2;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${labelText}</div>
-                </div>
-                <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:72px;">
-                    <div style="font-family:Arial,sans-serif;font-size:5px;font-weight:bold;text-align:center;margin-bottom:2px;line-height:1.1;">Visita nuestro<br>catálogo:</div>
-                    <img src="${qrDataUrl}" style="width:65px;height:65px;" alt="QR">
-                </div>
-            </div>`;
     }
 
     function closeLabelPreviewModal() {
@@ -3787,7 +3757,6 @@
         const list = document.getElementById('label-queue-list');
         const empty = document.getElementById('label-queue-empty');
         const printBtn = document.getElementById('btn-print-sheet');
-        const total = labelQueue.reduce((s, i) => s + i.qty, 0);
         const previewWrap = document.getElementById('queue-sheet-preview-wrap');
 
         if (labelQueue.length === 0) {
@@ -3805,13 +3774,13 @@
             const prod = inventory.find(p => p.id === item.productId);
             const name = prod ? prod.name.split(' ').slice(0, 4).join(' ') + '...' : `ID: ${item.productId}`;
             const box = prod?.box ? `[${prod.box}]` : '';
-            const slotsUsed = Math.min(item.qty, 4);
+            const code = prod ? getProductCode(prod) : '';
             const colorDot = `hsl(${(idx * 137) % 360}, 60%, 50%)`;
             return `<div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border">
                 <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${colorDot}"></span>
                 <div class="flex-grow min-w-0">
                     <p class="text-xs font-bold line-clamp-1">${box} ${name}</p>
-                    <p class="text-[10px] text-gray-500">EAN: ${generateEAN13(item.productId)}</p>
+                    <p class="text-[10px] text-gray-500 font-mono font-bold">${code}</p>
                 </div>
                 <div class="flex items-center gap-1 flex-shrink-0">
                     <button onclick="changeLabelQty(${idx}, -1)" class="w-6 h-6 bg-gray-200 rounded font-bold text-sm leading-none flex items-center justify-center hover:bg-gray-300">-</button>
@@ -3822,7 +3791,6 @@
             </div>`;
         }).join('');
 
-        // Update the slot count
         renderQueueSheetPreview();
     }
 
@@ -3830,9 +3798,8 @@
     async function renderQueueSheetPreview() {
         if (labelQueue.length === 0) return;
 
-        // Simulate taking next 4 slots (same logic as printNextLabelSheet)
         const slots = [];
-        let remaining = labelQueue.map(i => ({ ...i })); // shallow copy
+        let remaining = labelQueue.map(i => ({ ...i }));
         while (slots.length < 4 && remaining.length > 0) {
             const item = remaining[0];
             const prod = inventory.find(p => p.id === item.productId);
@@ -3841,25 +3808,21 @@
             if (item.qty <= 0) remaining.shift();
         }
 
-        // Update slot count badge
         const filled = slots.filter(s => s.prod).length;
         const slotCount = document.getElementById('queue-sheet-slot-count');
         if (slotCount) slotCount.textContent = `${filled} de 4 ranuras usadas`;
 
-        // Color map — same colors as the list
         const colorMap = {};
         labelQueue.forEach((item, idx) => {
             colorMap[item.productId] = `hsl(${(idx * 137) % 360}, 60%, 50%)`;
         });
 
-        // Render each slot cell
         for (let i = 0; i < 4; i++) {
             const cell = document.getElementById(`qsp-${i}`);
             if (!cell) continue;
             const slot = slots[i];
 
             if (!slot || !slot.prod) {
-                // Empty slot
                 cell.innerHTML = `<div style="text-align:center;color:#d1d5db;">
                     <div style="font-size:18px;">⬜</div>
                     <div style="font-size:9px;margin-top:2px;">Espacio vacío</div>
@@ -3870,42 +3833,32 @@
 
             const prod = slot.prod;
             const color = colorMap[slot.productId] || '#7c3aed';
-            const shortName = prod.name.split(' ').slice(0, 3).join(' ');
-            const box = prod.box ? prod.box.toUpperCase() : '';
+            const code = getProductCode(prod);
+            const title = formatProductTitle(prod);
 
-            // Generate barcode thumbnail
-            let barSrc = '';
-            try {
-                const bc = document.createElement('canvas');
-                JsBarcode(bc, generateEAN13(prod.id), {
-                    format: 'EAN13', width: 1.5, height: 30,
-                    displayValue: false, margin: 2,
-                    background: '#fff', lineColor: '#000'
-                });
-                barSrc = bc.toDataURL('image/png');
-            } catch(e) {}
-
-            // Generate QR thumbnail
             let qrSrc = '';
             try {
-                const qr = qrcode(0, 'L');
-                qr.addData(CATALOG_URL);
+                const qr = qrcode(0, 'M');
+                qr.addData(prod.id);
                 qr.make();
-                qrSrc = qr.createDataURL(2, 1);
+                qrSrc = qr.createDataURL(3, 1);
             } catch(e) {}
 
             cell.style.background = '#fff';
             cell.innerHTML = `
-                <div style="width:100%;height:100%;display:flex;flex-direction:row;align-items:center;gap:3px;padding:3px;overflow:hidden;position:relative;">
-                    <!-- Color dot indicator -->
-                    <div style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;"></div>
-                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
-                        ${barSrc ? `<img src="${barSrc}" style="width:100%;height:auto;max-height:28px;object-fit:contain;">` : ''}
-                        <div style="font-family:Arial,sans-serif;font-size:6px;font-weight:bold;line-height:1.2;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#111;">
-                            ${box ? box + '- ' : ''}${shortName}
+                <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:3px;position:relative;overflow:hidden;box-sizing:border-box;">
+                    <div style="position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:${color};"></div>
+                    <div style="display:flex;flex-direction:row;align-items:center;gap:3px;height:65%;">
+                        <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-family:Arial,sans-serif;font-weight:900;font-size:5.5pt;color:#000;">${code}</div>
+                        ${qrSrc ? `<img src="${qrSrc}" style="width:28px;height:28px;object-fit:contain;">` : ''}
+                        <div style="display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;">
+                            <div style="font-size:4.5pt;font-weight:bold;color:#333;line-height:1;">Visita catalogo:</div>
+                            <div style="font-size:5pt;font-weight:900;color:#000;line-height:1;margin-top:1px;">capsuleshop.net</div>
                         </div>
                     </div>
-                    ${qrSrc ? `<img src="${qrSrc}" style="width:28px;height:28px;flex-shrink:0;">` : ''}
+                    <div style="font-size:5pt;font-weight:900;line-height:1.1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#000;">
+                        ${title}
+                    </div>
                 </div>`;
         }
     }
@@ -3923,7 +3876,6 @@
     async function printNextLabelSheet() {
         if (labelQueue.length === 0) return;
 
-        // Collect up to 4 slots from the queue
         const slots = [];
         let remaining = [...labelQueue];
         while (slots.length < 4 && remaining.length > 0) {
@@ -3933,7 +3885,6 @@
             if (item.qty <= 0) remaining.shift();
         }
 
-        // Update the real queue
         labelQueue = remaining;
         saveLabelQueue();
         renderLabelQueueList();
@@ -3945,32 +3896,29 @@
         const sheet = document.getElementById('label-print-sheet');
         sheet.innerHTML = '<p style="font-family:Arial;font-size:10px;padding:4px;">Generando etiquetas...</p>';
 
-        // Generate all images first
         const cellsHtml = [];
         for (const slot of slots) {
             if (!slot.prod) {
-                cellsHtml.push('<div style="width:2in;height:1in;border:0.5pt dashed #ccc;"></div>');
+                cellsHtml.push('<div class="label-cell" style="border:0.5pt dashed #ccc;"></div>');
                 continue;
             }
-            const { barcodeDataUrl, qrDataUrl } = await buildLabelImageDataURLs(slot.prod);
-            const label = shortProductLabel(slot.prod);
-            cellsHtml.push(`<div class="label-cell">${buildLabelCellHTML(barcodeDataUrl, qrDataUrl, label, true)}</div>`);
+            const { code, qrDataUrl } = await buildLabelImageDataURLs(slot.prod);
+            const label = formatProductTitle(slot.prod);
+            cellsHtml.push(`<div class="label-cell">${buildLabelCellHTML(qrDataUrl, code, label, true)}</div>`);
         }
 
-        // Pad to 4 cells
         while (cellsHtml.length < 4) {
-            cellsHtml.push('<div class="label-cell"></div>');
+            cellsHtml.push('<div class="label-cell" style="border:0.5pt dashed #ccc;"></div>');
         }
 
         sheet.innerHTML = `<div class="label-sheet-grid">${cellsHtml.join('')}</div>`;
 
-        // Small delay to ensure images are loaded
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 250));
         window.print();
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // BARCODE SCANNER (html5-qrcode con Aceleración por Hardware)
+    // BARCODE & QR SCANNER (html5-qrcode con Aceleración por Hardware)
     // ─────────────────────────────────────────────────────────────────
     let _html5QrCode = null;
     let _scannerCameras = [];
@@ -3983,14 +3931,12 @@
         const manInput = document.getElementById('scanner-manual-input');
         if (manInput) { manInput.value = ''; setTimeout(() => manInput.focus(), 300); }
 
-        // Clean up any previous instance
         if (_html5QrCode) {
             try { if (_html5QrCode.isScanning) await _html5QrCode.stop(); _html5QrCode.clear(); } catch(e) {}
             _html5QrCode = null;
         }
 
         try {
-            // Habilitar motor BarcodeDetector nativo por hardware (mucho más sensible en códigos 1D)
             _html5QrCode = new Html5Qrcode('html5-qr-reader', {
                 experimentalFeatures: {
                     useBarCodeDetectorIfSupported: true
@@ -3998,7 +3944,6 @@
                 verbose: false
             });
 
-            // Obtener lista de cámaras disponibles para permitir elegir
             _scannerCameras = await Html5Qrcode.getCameras();
             const selectEl = document.getElementById('scanner-camera-select');
             const selectWrap = document.getElementById('scanner-camera-select-wrap');
@@ -4008,7 +3953,6 @@
                 selectEl.innerHTML = _scannerCameras.map((cam, idx) => 
                     `<option value="${cam.id}">📷 ${cam.label || ('Cámara ' + (idx + 1))}</option>`
                 ).join('');
-                // Priorizar cámara trasera si existe
                 const backCam = _scannerCameras.find(c => (c.label || '').toLowerCase().includes('back') || (c.label || '').toLowerCase().includes('trasera') || (c.label || '').toLowerCase().includes('environment'));
                 _currentCameraId = backCam ? backCam.id : _scannerCameras[_scannerCameras.length - 1].id;
                 selectEl.value = _currentCameraId;
@@ -4041,19 +3985,18 @@
 
     async function startScannerWithCamera(cameraSource) {
         const config = {
-            fps: 25, // 25 FPS para no perder fotogramas enfocados
+            fps: 25,
             qrbox: (viewfinderWidth, viewfinderHeight) => ({
-                width: Math.min(Math.floor(viewfinderWidth * 0.88), 320),
-                height: Math.min(Math.floor(viewfinderHeight * 0.55), 140)
+                width: Math.min(Math.floor(viewfinderWidth * 0.85), 280),
+                height: Math.min(Math.floor(viewfinderHeight * 0.85), 280)
             }),
-            aspectRatio: 1.777778,
-            // Soportar formatos de códigos de barra estándar (EAN-13, UPC-A, Code 128, EAN-8)
+            aspectRatio: 1.0,
+            // Soportar QR Code (principal) y códigos 1D de respaldo
             formatsToSupport: [
+                Html5QrcodeSupportedFormats.QR_CODE,
                 Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.UPC_A,
                 Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.EAN_8,
-                Html5QrcodeSupportedFormats.CODE_39
+                Html5QrcodeSupportedFormats.UPC_A
             ]
         };
 
@@ -4065,29 +4008,22 @@
             cameraParam,
             config,
             (decodedText) => onBarcodeScanned(decodedText),
-            () => { /* scanning frame */ }
+            () => { /* scanning */ }
         );
 
-        document.getElementById('scanner-status').innerHTML = '✅ <span class="text-emerald-600 font-bold">Cámara activa</span> — mantén el código a 15-20cm bien iluminado';
+        document.getElementById('scanner-status').innerHTML = '✅ <span class="text-emerald-600 font-bold">Cámara activa</span> — enfoca el QR del producto';
     }
 
     function onBarcodeScanned(rawText) {
         if (!rawText) return;
         const code = String(rawText).trim();
 
-        // Ignorar URLs completas (evita leer el código QR del catálogo)
-        if (code.startsWith('http://') || code.startsWith('https://') || code.includes('capsuleshop')) {
-            return;
-        }
-
-        // Buscar producto por EAN-13, por ID directo o por UPC-A (12 dígitos vs 13 con 0 inicial)
+        // Buscar producto por ID, código CODI, o enlace
         const matchBarcode = (p) => {
-            const pEan = generateEAN13(p.id);
-            if (pEan === code) return true;
             if (p.id === code) return true;
-            // Manejar compatibilidad UPC-A / EAN-13 con cero
-            if (code.length === 12 && ('0' + code) === pEan) return true;
-            if (pEan.length === 12 && ('0' + pEan) === code) return true;
+            if (getProductCode(p) === code) return true;
+            if (code.includes(p.id)) return true;
+            if (generateEAN13(p.id) === code) return true;
             return false;
         };
 
@@ -4096,11 +4032,10 @@
         const statusEl = document.getElementById('scanner-status');
 
         if (foundProd) {
-            // Sonido o vibración de confirmación
             if (navigator.vibrate) { try { navigator.vibrate(100); } catch(e) {} }
             
             addToPOS(foundProd.id);
-            resultEl.innerHTML = `✅ <b>${foundProd.name.split(' ').slice(0, 5).join(' ')}</b><br><span class="text-xs text-gray-500 font-normal">Agregado al carrito de venta</span>`;
+            resultEl.innerHTML = `✅ <b>${foundProd.name.split(' ').slice(0, 6).join(' ')}</b><br><span class="text-xs text-gray-500 font-normal">Agregado al carrito de venta</span>`;
             resultEl.classList.remove('hidden');
             statusEl.textContent = '¡Producto agregado con éxito!';
             showToast(`🛒 Agregado al POS: ${foundProd.name.split(' ').slice(0, 3).join(' ')}`);
@@ -4116,11 +4051,11 @@
         if (!input || !input.value.trim()) return;
         const val = input.value.trim().toLowerCase();
 
-        // Buscar por EAN, por ID, o por coincidencia de nombre/caja
+        // Buscar por ID, código CODI..., EAN, nombre o caja
         const found = inventory.find(p => {
-            const ean = generateEAN13(p.id);
-            if (ean === val) return true;
             if (p.id.toLowerCase() === val) return true;
+            if (getProductCode(p).toLowerCase() === val) return true;
+            if (generateEAN13(p.id) === val) return true;
             if (p.name.toLowerCase().includes(val)) return true;
             if (p.box && p.box.toLowerCase() === val) return true;
             return false;
@@ -4129,7 +4064,7 @@
         if (found) {
             addToPOS(found.id);
             const resultEl = document.getElementById('scanner-result');
-            resultEl.innerHTML = `✅ <b>${found.name.split(' ').slice(0, 5).join(' ')}</b><br><span class="text-xs text-gray-500 font-normal">Agregado manualmente</span>`;
+            resultEl.innerHTML = `✅ <b>${found.name.split(' ').slice(0, 6).join(' ')}</b><br><span class="text-xs text-gray-500 font-normal">Agregado manualmente</span>`;
             resultEl.classList.remove('hidden');
             showToast(`🛒 Agregado al POS: ${found.name.split(' ').slice(0, 3).join(' ')}`);
             setTimeout(() => closeScannerModal(), 800);
