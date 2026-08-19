@@ -697,6 +697,7 @@
                         <div class="relative">
                             <img src="${p.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}"
                                 class="w-full aspect-square object-cover"
+                                loading="lazy"
                                 onerror="this.src='https://via.placeholder.com/300?text=Sin+Imagen'">
                             ${p.stock <= 3 ? `<span class="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">Últimas</span>` : ''}
                         </div>
@@ -713,6 +714,7 @@
                          onclick="openProductModal('${p.id}')">
                         <img src="${p.img1 || 'https://via.placeholder.com/300'}"
                             class="w-28 aspect-square object-cover flex-shrink-0"
+                            loading="lazy"
                             onerror="this.src='https://via.placeholder.com/300'">
                         <div class="p-4 flex flex-col justify-center">
                             <span onclick="event.stopPropagation(); setCategory('${p.category}');" class="text-[9px] font-bold text-indigo-500 uppercase cursor-pointer hover:underline relative z-10">${p.category}</span>
@@ -846,7 +848,7 @@
                     <div class="grid grid-cols-3 gap-3">
                         ${related.map(r => `
                         <div class="cursor-pointer bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition group" onclick="openProductModal('${r.id}')">
-                            <img src="${r.img1 || 'https://via.placeholder.com/150'}" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/150'">
+                            <img src="${r.img1 || 'https://via.placeholder.com/150'}" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.src='https://via.placeholder.com/150'">
                             <div class="p-2">
                                 <h4 class="text-[10px] font-bold text-gray-800 line-clamp-2 leading-snug">${r.name}</h4>
                                 <p class="text-xs font-black text-indigo-600 mt-1">${curr} ${parseFloat(r.price).toFixed(2)}</p>
