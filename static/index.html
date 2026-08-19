@@ -12,6 +12,10 @@
     <script src="https://cdn.tailwindcss.com?plugins=line-clamp"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Librerías de Etiquetas y Escaneo -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -64,6 +68,85 @@
 
         .smooth-scroll {
             scroll-behavior: smooth;
+        }
+
+        /* ── LABEL SHEET PRINT ─────────────────────────────────── */
+        #label-print-sheet {
+            display: none;
+        }
+        @media print {
+            body > * { display: none !important; }
+            #label-print-sheet {
+                display: block !important;
+                margin: 0;
+                padding: 0;
+            }
+            @page {
+                size: 4in 2in landscape;
+                margin: 0;
+            }
+            .label-sheet-grid {
+                width: 4in;
+                height: 2in;
+                display: grid;
+                grid-template-columns: 2in 2in;
+                grid-template-rows: 1in 1in;
+                page-break-after: always;
+            }
+            .label-cell {
+                width: 2in;
+                height: 1in;
+                box-sizing: border-box;
+                padding: 3pt;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 4pt;
+                border: 0.5pt dashed #ccc;
+                overflow: hidden;
+            }
+            .label-left {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                flex: 1;
+                min-width: 0;
+            }
+            .label-barcode-img {
+                width: 100%;
+                max-width: 1.1in;
+                height: auto;
+            }
+            .label-text {
+                font-family: Arial, sans-serif;
+                font-size: 6pt;
+                font-weight: bold;
+                line-height: 1.2;
+                margin-top: 2pt;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 1.1in;
+            }
+            .label-right {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                flex-shrink: 0;
+                width: 0.72in;
+            }
+            .label-visit-text {
+                font-family: Arial, sans-serif;
+                font-size: 5pt;
+                font-weight: bold;
+                text-align: center;
+                margin-bottom: 2pt;
+                line-height: 1.1;
+            }
+            .label-qr-img {
+                width: 0.65in;
+                height: 0.65in;
+            }
         }
     </style>
 </head>
@@ -353,12 +436,17 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-2 gap-3">
                 <h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-cash-register text-indigo-600"></i>
                     Punto de Venta</h2>
-                <div class="flex items-center gap-1 border rounded-lg p-1 bg-gray-50"><button
-                        onclick="setPOSView('grid')" id="btn-pos-grid"
-                        class="p-2.5 rounded-md text-indigo-600 bg-indigo-100"><i
-                            class="fa-solid fa-table-cells-large text-sm"></i></button><button
-                        onclick="setPOSView('list')" id="btn-pos-list" class="p-2.5 rounded-md text-gray-500"><i
-                            class="fa-solid fa-list-ul text-sm"></i></button></div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openScannerModal()" class="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 active:scale-95 transition shadow-sm">
+                        <i class="fa-solid fa-camera"></i> Escanear
+                    </button>
+                    <div class="flex items-center gap-1 border rounded-lg p-1 bg-gray-50"><button
+                            onclick="setPOSView('grid')" id="btn-pos-grid"
+                            class="p-2.5 rounded-md text-indigo-600 bg-indigo-100"><i
+                                class="fa-solid fa-table-cells-large text-sm"></i></button><button
+                            onclick="setPOSView('list')" id="btn-pos-list" class="p-2.5 rounded-md text-gray-500"><i
+                                class="fa-solid fa-list-ul text-sm"></i></button></div>
+                </div>
             </div>
             <div class="flex flex-col lg:flex-row gap-6">
                 <div class="w-full lg:w-7/12 flex flex-col gap-4">
@@ -441,6 +529,10 @@
                     <button onclick="exportExcel()"
                         class="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition">
                         <i class="fa-solid fa-file-excel text-xs"></i> Exportar Excel
+                    </button>
+                    <button onclick="openLabelQueueModal()" class="relative flex items-center gap-1.5 bg-purple-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-purple-700 transition font-bold">
+                        <i class="fa-solid fa-tag text-xs"></i> Etiquetas
+                        <span id="label-queue-badge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
                     </button>
                     <button onclick="toggleProductForm()"
                         class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700">Nuevo</button>
@@ -1443,7 +1535,7 @@
                         if(left <= 0) fbBadge = `<span class="text-[10px] text-white bg-red-600 font-bold px-2 rounded animate-pulse">FB: Caducado</span>`;
                         else fbBadge = `<span class="text-[10px] ${left<=3 ? 'text-white bg-orange-500 font-bold' : 'text-gray-600 bg-gray-200'} px-2 rounded">FB: ${left}d</span>`;
                     }
-                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1">${fbBadge}<span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'} | Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1">${fbBadge}<span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'} | Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="openProductLabel('${prod.id}')" class="flex-1 py-2 text-purple-600 text-xs font-bold border-r" title="Generar etiqueta">🏷️</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
                 list.innerHTML = htmlStr;
             } else {
@@ -1460,7 +1552,7 @@
                         if(left <= 0) fbBadge = `<span class="text-[10px] text-white bg-red-600 font-bold px-1.5 rounded animate-pulse ml-2">FB: Caducado</span>`;
                         else fbBadge = `<span class="text-[10px] ${left<=3 ? 'text-white bg-orange-500 font-bold' : 'text-gray-600 bg-gray-200'} px-1.5 rounded ml-2">FB: ${left}d</span>`;
                     }
-                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock} ${fbBadge}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock} ${fbBadge}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="openProductLabel('${prod.id}')" class="flex-1 py-2 text-purple-600 text-xs font-bold border-b" title="Etiqueta">🏷️</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
                 list.innerHTML = htmlStr;
             }
@@ -3349,7 +3441,99 @@
 
     </script>
 
-    <!-- Global Scroll Buttons -->
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- SISTEMA DE ETIQUETAS + ESCÁNER ─ Modales y contenedor de impresión -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Contenedor oculto que se usa SÓLO al imprimir -->
+    <div id="label-print-sheet"></div>
+
+    <!-- ── MODAL: Previsualización de Etiqueta de Producto ─────────── -->
+    <div id="label-preview-modal" class="hidden fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-black text-lg text-purple-700"><i class="fa-solid fa-tag mr-2"></i>Etiqueta de Producto</h3>
+                <button onclick="closeLabelPreviewModal()" class="text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4">
+                <!-- Vista previa del layout 4 etiquetas -->
+                <div id="label-preview-container" class="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 mb-4" style="aspect-ratio: 2/1;"></div>
+                <p id="label-preview-name" class="text-xs text-gray-500 text-center mb-3 font-medium"></p>
+                <div class="flex items-center gap-3 mb-4">
+                    <label class="text-sm font-bold text-gray-700 whitespace-nowrap">Cantidad a imprimir:</label>
+                    <input type="number" id="label-qty-input" min="1" max="50" value="1" class="border rounded-lg p-2 text-sm w-20 outline-none focus:border-purple-500">
+                    <button onclick="addCurrentProductToQueue()" class="flex-1 bg-purple-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-purple-700 active:scale-95 transition">
+                        <i class="fa-solid fa-plus mr-1"></i> Agregar a Cola
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="printLabelNow()" class="w-1/2 bg-gray-800 text-white font-bold py-2.5 rounded-lg text-sm hover:bg-gray-700 active:scale-95 transition">
+                        <i class="fa-solid fa-print mr-1"></i> Imprimir Ahora
+                    </button>
+                    <button onclick="closeLabelPreviewModal()" class="w-1/2 bg-gray-100 text-gray-700 font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 active:scale-95 transition">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: Cola de Etiquetas ─────────────────────────────────── -->
+    <div id="label-queue-modal" class="hidden fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-black text-lg text-purple-700"><i class="fa-solid fa-tags mr-2"></i>Cola de Etiquetas</h3>
+                <button onclick="closeLabelQueueModal()" class="text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4">
+                <div id="label-queue-list" class="max-h-64 overflow-y-auto space-y-2 mb-4"></div>
+                <div id="label-queue-empty" class="hidden text-center py-8 text-gray-400">
+                    <i class="fa-solid fa-tag text-3xl mb-2"></i>
+                    <p class="text-sm">La cola está vacía.<br>Agrega productos desde el Inventario 🏷️</p>
+                </div>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="printNextLabelSheet()" id="btn-print-sheet" class="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 active:scale-95 transition disabled:opacity-40" disabled>
+                        <i class="fa-solid fa-print mr-2"></i> Imprimir Hoja (≤4)
+                    </button>
+                    <button onclick="clearLabelQueue()" class="bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl text-sm hover:bg-red-200 transition">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+                <p class="text-[11px] text-gray-400 text-center mt-2">Imprime hasta 4 etiquetas por hoja. Las impresas se descuentan de la cola.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: Escáner de Cámara ────────────────────────────────── -->
+    <div id="scanner-modal" class="hidden fixed inset-0 bg-black/80 z-[130] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm border overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-900 text-white">
+                <h3 class="font-black text-base"><i class="fa-solid fa-camera mr-2 text-indigo-400"></i>Escanear Código de Barras</h3>
+                <button onclick="closeScannerModal()" class="text-gray-400 hover:text-red-400 text-xl"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="relative bg-black" style="height: 280px;">
+                <video id="scanner-video" class="w-full h-full object-cover" autoplay muted playsinline></video>
+                <!-- Viewfinder overlay -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="border-4 border-indigo-400 rounded-lg opacity-70" style="width: 220px; height: 120px;"></div>
+                </div>
+                <div class="absolute bottom-3 left-0 right-0 text-center">
+                    <span class="bg-black/60 text-white text-xs px-3 py-1 rounded-full">Apunta al código de barras</span>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50">
+                <div id="scanner-result" class="hidden text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm font-bold border border-emerald-200 mb-3"></div>
+                <p id="scanner-status" class="text-center text-xs text-gray-500">Iniciando cámara...</p>
+                <button onclick="closeScannerModal()" class="mt-3 w-full bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm hover:bg-gray-300 transition">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Global Scroll Buttons ───────────────────────────────────── -->
     <div id="global-scroll-btns" class="fixed bottom-6 left-6 flex flex-col gap-3 z-50">
         <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 hover:scale-110 transition-all focus:outline-none" title="Ir arriba">
             <i class="fa-solid fa-arrow-up text-xl"></i>
@@ -3358,6 +3542,398 @@
             <i class="fa-solid fa-arrow-down text-xl"></i>
         </button>
     </div>
-</body>
 
-</html>
+    <!-- ════════════════════════════════════════════════════════════════
+         LABEL & SCANNER JAVASCRIPT ENGINE
+         ════════════════════════════════════════════════════════════════ -->
+    <script>
+    // ─────────────────────────────────────────────────────────────────
+    // EAN-13 GENERATION
+    // ─────────────────────────────────────────────────────────────────
+    function generateEAN13(productId) {
+        // Convert product ID to a 12-digit string (hash into numeric)
+        let str = String(productId).replace(/\D/g, '');
+        // If the ID has letters, convert each char to its char code
+        if (!str || str.length < 1) {
+            let hash = 0;
+            for (let i = 0; i < productId.length; i++) {
+                hash = (hash * 31 + productId.charCodeAt(i)) & 0x7FFFFFFF;
+            }
+            str = String(hash);
+        }
+        // Pad or truncate to exactly 12 digits
+        while (str.length < 12) str = str + str;
+        str = str.slice(0, 12);
+
+        // Calculate EAN-13 check digit
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            sum += parseInt(str[i]) * (i % 2 === 0 ? 1 : 3);
+        }
+        const checkDigit = (10 - (sum % 10)) % 10;
+        return str + checkDigit;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // LABEL QUEUE (localStorage)
+    // ─────────────────────────────────────────────────────────────────
+    let labelQueue = JSON.parse(localStorage.getItem('capsuleLabelQueue') || '[]');
+
+    function saveLabelQueue() {
+        localStorage.setItem('capsuleLabelQueue', JSON.stringify(labelQueue));
+        updateLabelQueueBadge();
+    }
+
+    function updateLabelQueueBadge() {
+        const total = labelQueue.reduce((s, i) => s + i.qty, 0);
+        const badge = document.getElementById('label-queue-badge');
+        if (!badge) return;
+        if (total > 0) {
+            badge.textContent = total;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    function addToLabelQueue(productId, qty) {
+        qty = parseInt(qty) || 1;
+        const existing = labelQueue.find(i => i.productId === productId);
+        if (existing) {
+            existing.qty += qty;
+        } else {
+            labelQueue.push({ productId, qty });
+        }
+        saveLabelQueue();
+    }
+
+    function removeFromLabelQueue(productId) {
+        labelQueue = labelQueue.filter(i => i.productId !== productId);
+        saveLabelQueue();
+        renderLabelQueueList();
+    }
+
+    function clearLabelQueue() {
+        if (!confirm('¿Vaciar toda la cola de etiquetas?')) return;
+        labelQueue = [];
+        saveLabelQueue();
+        renderLabelQueueList();
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // RENDER A SINGLE LABEL CELL (returns canvas-based HTML string for preview)
+    // For actual printing we'll generate images into the print sheet.
+    // ─────────────────────────────────────────────────────────────────
+    const CATALOG_URL = 'https://www.capsuleshop.net';
+
+    function shortProductLabel(prod) {
+        const box = prod.box ? prod.box.toUpperCase() : '';
+        const words = prod.name.split(/\s+/).slice(0, 5).join(' ');
+        return box ? `${box}- ${words},` : `${words},`;
+    }
+
+    async function buildLabelImageDataURLs(prod) {
+        const ean = generateEAN13(prod.id);
+        // Build barcode as base64 PNG via JsBarcode + canvas
+        const barcodeCanvas = document.createElement('canvas');
+        try {
+            JsBarcode(barcodeCanvas, ean, {
+                format: 'EAN13',
+                width: 2,
+                height: 60,
+                displayValue: true,
+                fontSize: 12,
+                margin: 4,
+                background: '#ffffff',
+                lineColor: '#000000'
+            });
+        } catch(e) { console.error('JsBarcode error', e); }
+        const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
+
+        // Build QR as base64 PNG via QRCode.js
+        let qrDataUrl = '';
+        try {
+            qrDataUrl = await QRCode.toDataURL(CATALOG_URL, {
+                width: 100,
+                margin: 1,
+                color: { dark: '#000000', light: '#ffffff' }
+            });
+        } catch(e) { console.error('QRCode error', e); }
+
+        return { ean, barcodeDataUrl, qrDataUrl };
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // PREVIEW MODAL
+    // ─────────────────────────────────────────────────────────────────
+    let _currentLabelProductId = null;
+
+    async function openProductLabel(productId) {
+        _currentLabelProductId = productId;
+        const prod = inventory.find(p => p.id === productId);
+        if (!prod) return;
+
+        document.getElementById('label-preview-name').textContent = prod.name;
+        document.getElementById('label-qty-input').value = prod.stock > 0 ? prod.stock : 1;
+        document.getElementById('label-preview-modal').classList.remove('hidden');
+
+        // Render preview (scaled down, 4 cells)
+        const container = document.getElementById('label-preview-container');
+        container.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">Generando previsualización...</p>';
+
+        try {
+            const { ean, barcodeDataUrl, qrDataUrl } = await buildLabelImageDataURLs(prod);
+            const label = shortProductLabel(prod);
+            const cellHtml = buildLabelCellHTML(barcodeDataUrl, qrDataUrl, label, false);
+            container.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
+                    ${cellHtml}${cellHtml}${cellHtml}${cellHtml}
+                </div>`;
+        } catch(e) {
+            container.innerHTML = '<p class="text-xs text-red-400 text-center py-8">Error al generar vista previa.</p>';
+        }
+    }
+
+    function buildLabelCellHTML(barcodeDataUrl, qrDataUrl, labelText, forPrint) {
+        const borderStyle = forPrint ? '' : 'border: 1px dashed #d1d5db;';
+        return `
+            <div style="display:flex;flex-direction:row;align-items:center;gap:4px;padding:4px;overflow:hidden;box-sizing:border-box;${borderStyle}">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;flex:1;min-width:0;">
+                    <img src="${barcodeDataUrl}" style="width:100%;max-width:130px;height:auto;" alt="barcode">
+                    <div style="font-family:Arial,sans-serif;font-size:7px;font-weight:bold;line-height:1.2;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">${labelText}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:72px;">
+                    <div style="font-family:Arial,sans-serif;font-size:5px;font-weight:bold;text-align:center;margin-bottom:2px;line-height:1.1;">Visita nuestro<br>catálogo:</div>
+                    <img src="${qrDataUrl}" style="width:65px;height:65px;" alt="QR">
+                </div>
+            </div>`;
+    }
+
+    function closeLabelPreviewModal() {
+        document.getElementById('label-preview-modal').classList.add('hidden');
+        _currentLabelProductId = null;
+    }
+
+    function addCurrentProductToQueue() {
+        if (!_currentLabelProductId) return;
+        const qty = parseInt(document.getElementById('label-qty-input').value) || 1;
+        addToLabelQueue(_currentLabelProductId, qty);
+        const prod = inventory.find(p => p.id === _currentLabelProductId);
+        closeLabelPreviewModal();
+        showToast(`🏷️ ${qty} etiqueta(s) de "${prod?.name?.split(' ').slice(0,3).join(' ')}" añadidas a la cola`);
+    }
+
+    async function printLabelNow() {
+        if (!_currentLabelProductId) return;
+        const qty = parseInt(document.getElementById('label-qty-input').value) || 1;
+        const prod = inventory.find(p => p.id === _currentLabelProductId);
+        if (!prod) return;
+        // Build n copies, up to 4 per sheet
+        const slots = Math.min(qty, 4);
+        const items = Array(slots).fill({ prod, qty: 1 });
+        await buildAndPrintSheet(items);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // LABEL QUEUE MODAL
+    // ─────────────────────────────────────────────────────────────────
+    function openLabelQueueModal() {
+        document.getElementById('label-queue-modal').classList.remove('hidden');
+        renderLabelQueueList();
+    }
+
+    function closeLabelQueueModal() {
+        document.getElementById('label-queue-modal').classList.add('hidden');
+    }
+
+    function renderLabelQueueList() {
+        const list = document.getElementById('label-queue-list');
+        const empty = document.getElementById('label-queue-empty');
+        const printBtn = document.getElementById('btn-print-sheet');
+        const total = labelQueue.reduce((s, i) => s + i.qty, 0);
+
+        if (labelQueue.length === 0) {
+            list.innerHTML = '';
+            empty.classList.remove('hidden');
+            printBtn.disabled = true;
+            return;
+        }
+        empty.classList.add('hidden');
+        printBtn.disabled = false;
+
+        list.innerHTML = labelQueue.map((item, idx) => {
+            const prod = inventory.find(p => p.id === item.productId);
+            const name = prod ? prod.name.split(' ').slice(0, 4).join(' ') + '...' : `ID: ${item.productId}`;
+            const box = prod?.box ? `[${prod.box}]` : '';
+            return `<div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border">
+                <span class="text-purple-600 text-lg">🏷️</span>
+                <div class="flex-grow min-w-0">
+                    <p class="text-xs font-bold line-clamp-1">${box} ${name}</p>
+                    <p class="text-[10px] text-gray-500">EAN: ${generateEAN13(item.productId)}</p>
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                    <button onclick="changeLabelQty(${idx}, -1)" class="w-6 h-6 bg-gray-200 rounded font-bold text-sm leading-none flex items-center justify-center hover:bg-gray-300">-</button>
+                    <span class="text-sm font-black w-6 text-center">${item.qty}</span>
+                    <button onclick="changeLabelQty(${idx}, 1)" class="w-6 h-6 bg-gray-200 rounded font-bold text-sm leading-none flex items-center justify-center hover:bg-gray-300">+</button>
+                    <button onclick="removeFromLabelQueue('${item.productId}')" class="ml-1 text-red-400 hover:text-red-600"><i class="fa-solid fa-times text-xs"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function changeLabelQty(idx, delta) {
+        labelQueue[idx].qty += delta;
+        if (labelQueue[idx].qty <= 0) labelQueue.splice(idx, 1);
+        saveLabelQueue();
+        renderLabelQueueList();
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // BUILD & PRINT SHEET
+    // ─────────────────────────────────────────────────────────────────
+    async function printNextLabelSheet() {
+        if (labelQueue.length === 0) return;
+
+        // Collect up to 4 slots from the queue
+        const slots = [];
+        let remaining = [...labelQueue];
+        while (slots.length < 4 && remaining.length > 0) {
+            const item = remaining[0];
+            slots.push({ prod: inventory.find(p => p.id === item.productId), qty: 1 });
+            item.qty--;
+            if (item.qty <= 0) remaining.shift();
+        }
+
+        // Update the real queue
+        labelQueue = remaining;
+        saveLabelQueue();
+        renderLabelQueueList();
+
+        await buildAndPrintSheet(slots);
+    }
+
+    async function buildAndPrintSheet(slots) {
+        const sheet = document.getElementById('label-print-sheet');
+        sheet.innerHTML = '<p style="font-family:Arial;font-size:10px;padding:4px;">Generando etiquetas...</p>';
+
+        // Generate all images first
+        const cellsHtml = [];
+        for (const slot of slots) {
+            if (!slot.prod) {
+                cellsHtml.push('<div style="width:2in;height:1in;border:0.5pt dashed #ccc;"></div>');
+                continue;
+            }
+            const { barcodeDataUrl, qrDataUrl } = await buildLabelImageDataURLs(slot.prod);
+            const label = shortProductLabel(slot.prod);
+            cellsHtml.push(`<div class="label-cell">${buildLabelCellHTML(barcodeDataUrl, qrDataUrl, label, true)}</div>`);
+        }
+
+        // Pad to 4 cells
+        while (cellsHtml.length < 4) {
+            cellsHtml.push('<div class="label-cell"></div>');
+        }
+
+        sheet.innerHTML = `<div class="label-sheet-grid">${cellsHtml.join('')}</div>`;
+
+        // Small delay to ensure images are loaded
+        await new Promise(r => setTimeout(r, 300));
+        window.print();
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // BARCODE SCANNER (ZXing)
+    // ─────────────────────────────────────────────────────────────────
+    let _zxingReader = null;
+    let _scannerActive = false;
+
+    async function openScannerModal() {
+        document.getElementById('scanner-modal').classList.remove('hidden');
+        document.getElementById('scanner-result').classList.add('hidden');
+        document.getElementById('scanner-status').textContent = 'Iniciando cámara...';
+        _scannerActive = true;
+
+        try {
+            const videoEl = document.getElementById('scanner-video');
+            const hints = new Map();
+            const formats = [
+                ZXingBrowser.BarcodeFormat.EAN_13,
+                ZXingBrowser.BarcodeFormat.EAN_8,
+                ZXingBrowser.BarcodeFormat.CODE_128
+            ];
+            hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, formats);
+
+            _zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+            const devices = await ZXingBrowser.BrowserMultiFormatReader.listVideoInputDevices();
+            const deviceId = devices.length > 0 ? devices[devices.length - 1].deviceId : undefined;
+
+            document.getElementById('scanner-status').textContent = 'Cámara activa — apunta al código de barras';
+
+            _zxingReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
+                if (!_scannerActive) return;
+                if (result) {
+                    const scannedCode = result.getText();
+                    const foundProd = inventory.find(p => generateEAN13(p.id) === scannedCode);
+                    if (foundProd) {
+                        // Add to POS cart
+                        addToPOS(foundProd.id);
+                        document.getElementById('scanner-result').textContent = `✅ Agregado: ${foundProd.name.split(' ').slice(0, 5).join(' ')}`;
+                        document.getElementById('scanner-result').classList.remove('hidden');
+                        document.getElementById('scanner-status').textContent = '¡Producto agregado al carrito!';
+                        setTimeout(() => closeScannerModal(), 1200);
+                    } else {
+                        document.getElementById('scanner-result').textContent = `⚠️ Código: ${scannedCode} — no encontrado en inventario`;
+                        document.getElementById('scanner-result').classList.remove('hidden');
+                    }
+                }
+            });
+        } catch(err) {
+            document.getElementById('scanner-status').textContent = '❌ Error al acceder a la cámara: ' + err.message;
+            console.error('Scanner error:', err);
+        }
+    }
+
+    function closeScannerModal() {
+        _scannerActive = false;
+        if (_zxingReader) {
+            try { _zxingReader.reset(); } catch(e) {}
+            _zxingReader = null;
+        }
+        document.getElementById('scanner-modal').classList.add('hidden');
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // TOAST UTILITY (reuse or define if missing)
+    // ─────────────────────────────────────────────────────────────────
+    function showToast(msg, duration = 3000) {
+        let t = document.getElementById('label-toast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'label-toast';
+            t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e1b4b;color:#fff;padding:10px 20px;border-radius:50px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 4px 24px rgba(0,0,0,0.3);transition:opacity 0.3s;pointer-events:none;white-space:nowrap;';
+            document.body.appendChild(t);
+        }
+        t.textContent = msg;
+        t.style.opacity = '1';
+        clearTimeout(t._timeout);
+        t._timeout = setTimeout(() => { t.style.opacity = '0'; }, duration);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // INIT
+    // ─────────────────────────────────────────────────────────────────
+    updateLabelQueueBadge();
+
+    // Close modals on backdrop click
+    document.getElementById('label-preview-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeLabelPreviewModal();
+    });
+    document.getElementById('label-queue-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeLabelQueueModal();
+    });
+    document.getElementById('scanner-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeScannerModal();
+    });
+    </script>
+
+</body>
+</html>
