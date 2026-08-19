@@ -753,6 +753,17 @@
             return url;
         }
 
+        function safeImageUrl(url) {
+            if (!url || typeof url !== 'string') return '';
+            url = url.trim();
+            if (!url || url === 'null' || url === 'undefined' || url.length < 5) return '';
+            try {
+                return encodeURI(decodeURI(url));
+            } catch (e) {
+                return url;
+            }
+        }
+
         function getProductUrl(productId) {
             return `${window.location.origin}/catalog/${STORE_ID}/p/${productId}`;
         }
@@ -794,8 +805,16 @@
             const modalContent = document.getElementById('product-modal-content');
             if (modalContent) modalContent.scrollTop = 0;
 
-            const imgs = [p.img1, p.img2, p.img3].filter(Boolean);
-            const carouselImgs = imgs.map(src => `<a data-fslightbox="product-gallery-${p.id}" href="${src}" class="min-w-full aspect-square snap-center block relative cursor-zoom-in group"><img src="${src}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400'"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center"><div class="bg-black/60 text-white rounded-full w-12 h-12 flex items-center justify-center pointer-events-none transform scale-75 group-hover:scale-100 transition shadow-xl backdrop-blur-sm"><i class="fa-solid fa-magnifying-glass-plus text-lg"></i></div></div></a>`).join('');
+            const rawImgs = [p.img1, p.img2, p.img3];
+            let imgs = rawImgs
+                .map(safeImageUrl)
+                .filter(Boolean);
+
+            if (imgs.length === 0) {
+                imgs = ['https://via.placeholder.com/400?text=Sin+Imagen'];
+            }
+
+            const carouselImgs = imgs.map(src => `<a data-fslightbox="product-modal-gallery" data-type="image" href="${src}" class="min-w-full aspect-square snap-center block relative cursor-zoom-in group"><img src="${src}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400'; if(this.parentElement) this.parentElement.setAttribute('href','https://via.placeholder.com/400');"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center"><div class="bg-black/60 text-white rounded-full w-12 h-12 flex items-center justify-center pointer-events-none transform scale-75 group-hover:scale-100 transition shadow-xl backdrop-blur-sm"><i class="fa-solid fa-magnifying-glass-plus text-lg"></i></div></div></a>`).join('');
             const navBtns = imgs.length > 1 ? `
                 <button onclick="scrollModalImages(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition z-10"><i class="fa-solid fa-chevron-left text-sm"></i></button>
                 <button onclick="scrollModalImages(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-black w-9 h-9 rounded-full shadow-md flex items-center justify-center hover:bg-white transition z-10"><i class="fa-solid fa-chevron-right text-sm"></i></button>` : '';
