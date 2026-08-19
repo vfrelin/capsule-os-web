@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Librerías de Etiquetas y Escaneo -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar {
@@ -3634,7 +3634,8 @@
 
     async function buildLabelImageDataURLs(prod) {
         const ean = generateEAN13(prod.id);
-        // Build barcode as base64 PNG via JsBarcode + canvas
+
+        // ── Barcode via JsBarcode ──────────────────────────────────
         const barcodeCanvas = document.createElement('canvas');
         try {
             JsBarcode(barcodeCanvas, ean, {
@@ -3650,15 +3651,15 @@
         } catch(e) { console.error('JsBarcode error', e); }
         const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
-        // Build QR as base64 PNG via QRCode.js
+        // ── QR via qrcode-generator (synchronous, browser-native) ──
         let qrDataUrl = '';
         try {
-            qrDataUrl = await QRCode.toDataURL(CATALOG_URL, {
-                width: 100,
-                margin: 1,
-                color: { dark: '#000000', light: '#ffffff' }
-            });
-        } catch(e) { console.error('QRCode error', e); }
+            const qr = qrcode(0, 'M');   // type=0 (auto), correction level M
+            qr.addData(CATALOG_URL);
+            qr.make();
+            // createDataURL(cellSize, margin) → base64 PNG
+            qrDataUrl = qr.createDataURL(4, 2);
+        } catch(e) { console.error('QR error', e); }
 
         return { ean, barcodeDataUrl, qrDataUrl };
     }
