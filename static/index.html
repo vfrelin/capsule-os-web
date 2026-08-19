@@ -92,12 +92,15 @@
                 grid-template-columns: 2in 2in;
                 grid-template-rows: 1in 1in;
                 page-break-after: always;
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
             }
             .label-cell {
                 width: 2in;
                 height: 1in;
                 box-sizing: border-box;
-                padding: 4pt;
+                padding: 3pt 4pt 3pt 4pt;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
@@ -3647,7 +3650,7 @@
             qr.addData(prod.id);
             qr.make();
             // createDataURL(cellSize, margin)
-            qrDataUrl = qr.createDataURL(5, 1);
+            qrDataUrl = qr.createDataURL(4, 0);
         } catch(e) { console.error('QR error', e); }
 
         return { code, qrDataUrl };
@@ -3656,29 +3659,29 @@
     function buildLabelCellHTML(qrDataUrl, code, labelText, forPrint) {
         const borderStyle = forPrint ? '' : 'border: 1px dashed #d1d5db;';
         return `
-            <div style="width:100%;height:100%;box-sizing:border-box;padding:4pt;display:flex;flex-direction:column;justify-content:space-between;background:#fff;${borderStyle}">
+            <div style="width:100%;height:100%;box-sizing:border-box;padding:2pt 3pt 2pt 3pt;display:flex;flex-direction:column;justify-content:space-between;background:#fff;${borderStyle}">
                 <!-- Fila Superior: Código Vertical + QR + Enlace Catálogo -->
-                <div style="display:flex;flex-direction:row;align-items:center;gap:4pt;height:0.62in;overflow:hidden;">
-                    <!-- Código vertical -->
-                    <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-family:Arial,sans-serif;font-weight:900;font-size:7.5pt;letter-spacing:0.5px;color:#000;text-align:center;flex-shrink:0;line-height:1;">
+                <div style="display:flex;flex-direction:row;align-items:center;gap:3pt;height:0.56in;overflow:hidden;">
+                    <!-- Código vertical (con espacio suficiente para no cortarse) -->
+                    <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-family:Arial,sans-serif;font-weight:900;font-size:6.2pt;letter-spacing:0.2px;color:#000;text-align:center;flex-shrink:0;line-height:1;padding-left:1.5pt;">
                         ${code}
                     </div>
                     <!-- Código QR Cuadrado -->
-                    <div style="flex-shrink:0;width:0.62in;height:0.62in;display:flex;align-items:center;justify-content:center;">
-                        <img src="${qrDataUrl}" style="width:0.62in;height:0.62in;object-fit:contain;" alt="QR">
+                    <div style="flex-shrink:0;width:0.52in;height:0.52in;display:flex;align-items:center;justify-content:center;">
+                        <img src="${qrDataUrl}" style="width:0.52in;height:0.52in;object-fit:contain;" alt="QR">
                     </div>
-                    <!-- Texto derecho catálogo -->
-                    <div style="display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;padding-left:2pt;">
-                        <div style="font-family:Arial,sans-serif;font-size:6.2pt;font-weight:bold;color:#000;line-height:1.15;">
+                    <!-- Texto derecho catálogo (garantizado en 1 sola línea) -->
+                    <div style="display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;padding-left:1pt;">
+                        <div style="font-family:Arial,sans-serif;font-size:5.2pt;font-weight:bold;color:#000;line-height:1.1;white-space:nowrap;">
                             Visita nuestro catalogo:
                         </div>
-                        <div style="font-family:Arial,sans-serif;font-size:7.2pt;font-weight:900;color:#000;line-height:1.15;margin-top:3pt;word-break:break-all;">
+                        <div style="font-family:Arial,sans-serif;font-size:5.8pt;font-weight:900;color:#000;line-height:1.1;margin-top:2.5pt;white-space:nowrap;letter-spacing:-0.2px;">
                             www.capsuleshop.net
                         </div>
                     </div>
                 </div>
                 <!-- Fila Inferior: Caja y Título (con al menos 8 palabras) -->
-                <div style="font-family:Arial,sans-serif;font-size:6.8pt;font-weight:900;line-height:1.15;color:#000;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:0.32in;padding-top:2pt;">
+                <div style="font-family:Arial,sans-serif;font-size:6.2pt;font-weight:900;line-height:1.15;color:#000;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:0.34in;padding-top:1pt;">
                     ${labelText}
                 </div>
             </div>`;
