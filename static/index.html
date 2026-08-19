@@ -3970,19 +3970,20 @@
             const config = {
                 fps: 10,
                 qrbox: { width: 260, height: 110 },
-                // Scan EAN-13, EAN-8 and Code 128
+                // Solo códigos de barras EAN-13 (excluye QR y otros formatos)
                 formatsToSupport: [
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.CODE_128
+                    Html5QrcodeSupportedFormats.EAN_13
                 ]
             };
 
             await _html5QrCode.start(
-                { facingMode: 'environment' },   // use rear camera; falls back to any camera
+                { facingMode: 'environment' },   // cámara trasera o cualquier disponible
                 config,
                 (decodedText) => {
-                    // ── Scan success ──────────────────────────────
+                    // ── Validación estricta: solo EAN-13 (exactamente 13 dígitos numéricos) ──
+                    // Esto hace que el QR se ignore aunque la cámara lo lea
+                    if (!/^\d{13}$/.test(decodedText)) return;
+
                     const foundProd = inventory.find(p => generateEAN13(p.id) === decodedText);
                     const resultEl = document.getElementById('scanner-result');
                     const statusEl = document.getElementById('scanner-status');
@@ -3994,11 +3995,11 @@
                         statusEl.textContent = '¡Producto agregado al carrito!';
                         setTimeout(() => closeScannerModal(), 1500);
                     } else {
-                        resultEl.textContent = `⚠️ Código: ${decodedText} — no encontrado en inventario`;
+                        resultEl.textContent = `⚠️ Código no encontrado en inventario`;
                         resultEl.classList.remove('hidden');
                     }
                 },
-                () => { /* scan error — ignore, fires constantly while scanning */ }
+                () => { /* error de escaneo — normal mientras busca, se ignora */ }
             );
 
             document.getElementById('scanner-status').textContent = 'Cámara activa — apunta al código de barras';
