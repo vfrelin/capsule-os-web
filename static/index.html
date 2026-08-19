@@ -3535,13 +3535,33 @@
                 <h3 class="font-black text-base"><i class="fa-solid fa-camera mr-2 text-indigo-400"></i>Escanear Código de Barras</h3>
                 <button onclick="closeScannerModal()" class="text-gray-400 hover:text-red-400 text-xl"><i class="fa-solid fa-times"></i></button>
             </div>
+            
+            <!-- Selector de cámara (si hay más de una) -->
+            <div id="scanner-camera-select-wrap" class="hidden px-3 py-2 bg-gray-900 border-b border-gray-800">
+                <select id="scanner-camera-select" onchange="switchScannerCamera(this.value)" class="w-full bg-gray-800 text-white text-xs rounded-lg p-2 border border-gray-700 outline-none">
+                </select>
+            </div>
+
             <!-- html5-qrcode renders the camera feed into this div -->
-            <div id="html5-qr-reader" class="w-full bg-black" style="min-height:260px;"></div>
+            <div id="html5-qr-reader" class="w-full bg-black relative" style="min-height:260px;"></div>
+            
             <div class="p-4 bg-gray-50">
                 <div id="scanner-result" class="hidden text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm font-bold border border-emerald-200 mb-3"></div>
-                <p id="scanner-status" class="text-center text-xs text-gray-500">Iniciando cámara...</p>
+                <p id="scanner-status" class="text-center text-xs text-gray-500 font-medium">Iniciando cámara...</p>
+                
+                <!-- Entrada manual de código (o lector USB) -->
+                <div class="mt-3 pt-3 border-t">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">O ingresa el código / lector USB:</p>
+                    <form onsubmit="event.preventDefault(); handleManualScannerInput();" class="flex gap-1.5">
+                        <input type="text" id="scanner-manual-input" placeholder="Código o nombre..." class="flex-1 border rounded-lg px-3 py-2 text-xs bg-white outline-none focus:border-indigo-500 font-mono">
+                        <button type="submit" class="bg-indigo-600 text-white text-xs font-bold px-3.5 py-2 rounded-lg hover:bg-indigo-700 active:scale-95 transition">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </form>
+                </div>
+
                 <button onclick="closeScannerModal()" class="mt-3 w-full bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm hover:bg-gray-300 transition">
-                    Cancelar
+                    Cerrar
                 </button>
             </div>
         </div>
@@ -3649,16 +3669,17 @@
     async function buildLabelImageDataURLs(prod) {
         const ean = generateEAN13(prod.id);
 
-        // ── Barcode via JsBarcode ──────────────────────────────────
+        // ── Barcode via JsBarcode (Más alto y nítido para mejor lectura) ──
         const barcodeCanvas = document.createElement('canvas');
         try {
             JsBarcode(barcodeCanvas, ean, {
                 format: 'EAN13',
-                width: 2,
-                height: 60,
+                width: 2.2,
+                height: 70,
                 displayValue: true,
-                fontSize: 12,
+                fontSize: 13,
                 margin: 4,
+                flat: true,
                 background: '#ffffff',
                 lineColor: '#000000'
             });
@@ -3949,64 +3970,173 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // BARCODE SCANNER (html5-qrcode)
+    // BARCODE SCANNER (html5-qrcode con Aceleración por Hardware)
     // ─────────────────────────────────────────────────────────────────
     let _html5QrCode = null;
+    let _scannerCameras = [];
+    let _currentCameraId = null;
 
     async function openScannerModal() {
         document.getElementById('scanner-modal').classList.remove('hidden');
         document.getElementById('scanner-result').classList.add('hidden');
         document.getElementById('scanner-status').textContent = 'Iniciando cámara...';
+        const manInput = document.getElementById('scanner-manual-input');
+        if (manInput) { manInput.value = ''; setTimeout(() => manInput.focus(), 300); }
 
         // Clean up any previous instance
         if (_html5QrCode) {
-            try { await _html5QrCode.stop(); } catch(e) {}
+            try { if (_html5QrCode.isScanning) await _html5QrCode.stop(); _html5QrCode.clear(); } catch(e) {}
             _html5QrCode = null;
         }
 
         try {
-            _html5QrCode = new Html5Qrcode('html5-qr-reader');
-
-            const config = {
-                fps: 10,
-                qrbox: { width: 260, height: 110 },
-                // Solo códigos de barras EAN-13 (excluye QR y otros formatos)
-                formatsToSupport: [
-                    Html5QrcodeSupportedFormats.EAN_13
-                ]
-            };
-
-            await _html5QrCode.start(
-                { facingMode: 'environment' },   // cámara trasera o cualquier disponible
-                config,
-                (decodedText) => {
-                    // ── Validación estricta: solo EAN-13 (exactamente 13 dígitos numéricos) ──
-                    // Esto hace que el QR se ignore aunque la cámara lo lea
-                    if (!/^\d{13}$/.test(decodedText)) return;
-
-                    const foundProd = inventory.find(p => generateEAN13(p.id) === decodedText);
-                    const resultEl = document.getElementById('scanner-result');
-                    const statusEl = document.getElementById('scanner-status');
-
-                    if (foundProd) {
-                        addToPOS(foundProd.id);
-                        resultEl.textContent = `✅ Agregado: ${foundProd.name.split(' ').slice(0, 5).join(' ')}`;
-                        resultEl.classList.remove('hidden');
-                        statusEl.textContent = '¡Producto agregado al carrito!';
-                        setTimeout(() => closeScannerModal(), 1500);
-                    } else {
-                        resultEl.textContent = `⚠️ Código no encontrado en inventario`;
-                        resultEl.classList.remove('hidden');
-                    }
+            // Habilitar motor BarcodeDetector nativo por hardware (mucho más sensible en códigos 1D)
+            _html5QrCode = new Html5Qrcode('html5-qr-reader', {
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
                 },
-                () => { /* error de escaneo — normal mientras busca, se ignora */ }
-            );
+                verbose: false
+            });
 
-            document.getElementById('scanner-status').textContent = 'Cámara activa — apunta al código de barras';
+            // Obtener lista de cámaras disponibles para permitir elegir
+            _scannerCameras = await Html5Qrcode.getCameras();
+            const selectEl = document.getElementById('scanner-camera-select');
+            const selectWrap = document.getElementById('scanner-camera-select-wrap');
+
+            if (_scannerCameras && _scannerCameras.length > 1) {
+                selectWrap.classList.remove('hidden');
+                selectEl.innerHTML = _scannerCameras.map((cam, idx) => 
+                    `<option value="${cam.id}">📷 ${cam.label || ('Cámara ' + (idx + 1))}</option>`
+                ).join('');
+                // Priorizar cámara trasera si existe
+                const backCam = _scannerCameras.find(c => (c.label || '').toLowerCase().includes('back') || (c.label || '').toLowerCase().includes('trasera') || (c.label || '').toLowerCase().includes('environment'));
+                _currentCameraId = backCam ? backCam.id : _scannerCameras[_scannerCameras.length - 1].id;
+                selectEl.value = _currentCameraId;
+            } else if (_scannerCameras && _scannerCameras.length === 1) {
+                selectWrap.classList.add('hidden');
+                _currentCameraId = _scannerCameras[0].id;
+            } else {
+                selectWrap.classList.add('hidden');
+                _currentCameraId = { facingMode: "environment" };
+            }
+
+            await startScannerWithCamera(_currentCameraId);
 
         } catch(err) {
             document.getElementById('scanner-status').textContent = '❌ Error al acceder a la cámara: ' + err.message;
             console.error('Scanner error:', err);
+        }
+    }
+
+    async function switchScannerCamera(cameraId) {
+        if (!_html5QrCode) return;
+        _currentCameraId = cameraId;
+        try {
+            if (_html5QrCode.isScanning) await _html5QrCode.stop();
+            await startScannerWithCamera(cameraId);
+        } catch(e) {
+            console.error('Error switching camera:', e);
+        }
+    }
+
+    async function startScannerWithCamera(cameraSource) {
+        const config = {
+            fps: 25, // 25 FPS para no perder fotogramas enfocados
+            qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                width: Math.min(Math.floor(viewfinderWidth * 0.88), 320),
+                height: Math.min(Math.floor(viewfinderHeight * 0.55), 140)
+            }),
+            aspectRatio: 1.777778,
+            // Soportar formatos de códigos de barra estándar (EAN-13, UPC-A, Code 128, EAN-8)
+            formatsToSupport: [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.CODE_39
+            ]
+        };
+
+        const cameraParam = typeof cameraSource === 'string'
+            ? { deviceId: { exact: cameraSource } }
+            : cameraSource;
+
+        await _html5QrCode.start(
+            cameraParam,
+            config,
+            (decodedText) => onBarcodeScanned(decodedText),
+            () => { /* scanning frame */ }
+        );
+
+        document.getElementById('scanner-status').innerHTML = '✅ <span class="text-emerald-600 font-bold">Cámara activa</span> — mantén el código a 15-20cm bien iluminado';
+    }
+
+    function onBarcodeScanned(rawText) {
+        if (!rawText) return;
+        const code = String(rawText).trim();
+
+        // Ignorar URLs completas (evita leer el código QR del catálogo)
+        if (code.startsWith('http://') || code.startsWith('https://') || code.includes('capsuleshop')) {
+            return;
+        }
+
+        // Buscar producto por EAN-13, por ID directo o por UPC-A (12 dígitos vs 13 con 0 inicial)
+        const matchBarcode = (p) => {
+            const pEan = generateEAN13(p.id);
+            if (pEan === code) return true;
+            if (p.id === code) return true;
+            // Manejar compatibilidad UPC-A / EAN-13 con cero
+            if (code.length === 12 && ('0' + code) === pEan) return true;
+            if (pEan.length === 12 && ('0' + pEan) === code) return true;
+            return false;
+        };
+
+        const foundProd = inventory.find(matchBarcode);
+        const resultEl = document.getElementById('scanner-result');
+        const statusEl = document.getElementById('scanner-status');
+
+        if (foundProd) {
+            // Sonido o vibración de confirmación
+            if (navigator.vibrate) { try { navigator.vibrate(100); } catch(e) {} }
+            
+            addToPOS(foundProd.id);
+            resultEl.innerHTML = `✅ <b>${foundProd.name.split(' ').slice(0, 5).join(' ')}</b><br><span class="text-xs text-gray-500 font-normal">Agregado al carrito de venta</span>`;
+            resultEl.classList.remove('hidden');
+            statusEl.textContent = '¡Producto agregado con éxito!';
+            showToast(`🛒 Agregado al POS: ${foundProd.name.split(' ').slice(0, 3).join(' ')}`);
+            setTimeout(() => closeScannerModal(), 1200);
+        } else {
+            resultEl.innerHTML = `⚠️ Código detectado: <span class="font-mono">${code}</span><br><span class="text-xs text-gray-500 font-normal">No coincide con ningún producto actual</span>`;
+            resultEl.classList.remove('hidden');
+        }
+    }
+
+    function handleManualScannerInput() {
+        const input = document.getElementById('scanner-manual-input');
+        if (!input || !input.value.trim()) return;
+        const val = input.value.trim().toLowerCase();
+
+        // Buscar por EAN, por ID, o por coincidencia de nombre/caja
+        const found = inventory.find(p => {
+            const ean = generateEAN13(p.id);
+            if (ean === val) return true;
+            if (p.id.toLowerCase() === val) return true;
+            if (p.name.toLowerCase().includes(val)) return true;
+            if (p.box && p.box.toLowerCase() === val) return true;
+            return false;
+        });
+
+        if (found) {
+            addToPOS(found.id);
+            const resultEl = document.getElementById('scanner-result');
+            resultEl.innerHTML = `✅ <b>${found.name.split(' ').slice(0, 5).join(' ')}</b><br><span class="text-xs text-gray-500 font-normal">Agregado manualmente</span>`;
+            resultEl.classList.remove('hidden');
+            showToast(`🛒 Agregado al POS: ${found.name.split(' ').slice(0, 3).join(' ')}`);
+            setTimeout(() => closeScannerModal(), 800);
+        } else {
+            const resultEl = document.getElementById('scanner-result');
+            resultEl.innerHTML = `⚠️ No se encontró: <span class="font-mono">${val}</span>`;
+            resultEl.classList.remove('hidden');
         }
     }
 
@@ -4018,7 +4148,8 @@
             } catch(e) { console.warn('Scanner stop error:', e); }
             _html5QrCode = null;
         }
-        document.getElementById('html5-qr-reader').innerHTML = '';
+        const readerEl = document.getElementById('html5-qr-reader');
+        if (readerEl) readerEl.innerHTML = '';
         document.getElementById('scanner-modal').classList.add('hidden');
     }
 
