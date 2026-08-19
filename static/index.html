@@ -15,7 +15,7 @@
     <!-- Librerías de Etiquetas y Escaneo -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -3535,16 +3535,8 @@
                 <h3 class="font-black text-base"><i class="fa-solid fa-camera mr-2 text-indigo-400"></i>Escanear Código de Barras</h3>
                 <button onclick="closeScannerModal()" class="text-gray-400 hover:text-red-400 text-xl"><i class="fa-solid fa-times"></i></button>
             </div>
-            <div class="relative bg-black" style="height: 280px;">
-                <video id="scanner-video" class="w-full h-full object-cover" autoplay muted playsinline></video>
-                <!-- Viewfinder overlay -->
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div class="border-4 border-indigo-400 rounded-lg opacity-70" style="width: 220px; height: 120px;"></div>
-                </div>
-                <div class="absolute bottom-3 left-0 right-0 text-center">
-                    <span class="bg-black/60 text-white text-xs px-3 py-1 rounded-full">Apunta al código de barras</span>
-                </div>
-            </div>
+            <!-- html5-qrcode renders the camera feed into this div -->
+            <div id="html5-qr-reader" class="w-full bg-black" style="min-height:260px;"></div>
             <div class="p-4 bg-gray-50">
                 <div id="scanner-result" class="hidden text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm font-bold border border-emerald-200 mb-3"></div>
                 <p id="scanner-status" class="text-center text-xs text-gray-500">Iniciando cámara...</p>
@@ -3957,63 +3949,75 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // BARCODE SCANNER (ZXing)
+    // BARCODE SCANNER (html5-qrcode)
     // ─────────────────────────────────────────────────────────────────
-    let _zxingReader = null;
-    let _scannerActive = false;
+    let _html5QrCode = null;
 
     async function openScannerModal() {
         document.getElementById('scanner-modal').classList.remove('hidden');
         document.getElementById('scanner-result').classList.add('hidden');
         document.getElementById('scanner-status').textContent = 'Iniciando cámara...';
-        _scannerActive = true;
+
+        // Clean up any previous instance
+        if (_html5QrCode) {
+            try { await _html5QrCode.stop(); } catch(e) {}
+            _html5QrCode = null;
+        }
 
         try {
-            const videoEl = document.getElementById('scanner-video');
-            const hints = new Map();
-            const formats = [
-                ZXingBrowser.BarcodeFormat.EAN_13,
-                ZXingBrowser.BarcodeFormat.EAN_8,
-                ZXingBrowser.BarcodeFormat.CODE_128
-            ];
-            hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, formats);
+            _html5QrCode = new Html5Qrcode('html5-qr-reader');
 
-            _zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
-            const devices = await ZXingBrowser.BrowserMultiFormatReader.listVideoInputDevices();
-            const deviceId = devices.length > 0 ? devices[devices.length - 1].deviceId : undefined;
+            const config = {
+                fps: 10,
+                qrbox: { width: 260, height: 110 },
+                // Scan EAN-13, EAN-8 and Code 128
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.CODE_128
+                ]
+            };
+
+            await _html5QrCode.start(
+                { facingMode: 'environment' },   // use rear camera; falls back to any camera
+                config,
+                (decodedText) => {
+                    // ── Scan success ──────────────────────────────
+                    const foundProd = inventory.find(p => generateEAN13(p.id) === decodedText);
+                    const resultEl = document.getElementById('scanner-result');
+                    const statusEl = document.getElementById('scanner-status');
+
+                    if (foundProd) {
+                        addToPOS(foundProd.id);
+                        resultEl.textContent = `✅ Agregado: ${foundProd.name.split(' ').slice(0, 5).join(' ')}`;
+                        resultEl.classList.remove('hidden');
+                        statusEl.textContent = '¡Producto agregado al carrito!';
+                        setTimeout(() => closeScannerModal(), 1500);
+                    } else {
+                        resultEl.textContent = `⚠️ Código: ${decodedText} — no encontrado en inventario`;
+                        resultEl.classList.remove('hidden');
+                    }
+                },
+                () => { /* scan error — ignore, fires constantly while scanning */ }
+            );
 
             document.getElementById('scanner-status').textContent = 'Cámara activa — apunta al código de barras';
 
-            _zxingReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
-                if (!_scannerActive) return;
-                if (result) {
-                    const scannedCode = result.getText();
-                    const foundProd = inventory.find(p => generateEAN13(p.id) === scannedCode);
-                    if (foundProd) {
-                        // Add to POS cart
-                        addToPOS(foundProd.id);
-                        document.getElementById('scanner-result').textContent = `✅ Agregado: ${foundProd.name.split(' ').slice(0, 5).join(' ')}`;
-                        document.getElementById('scanner-result').classList.remove('hidden');
-                        document.getElementById('scanner-status').textContent = '¡Producto agregado al carrito!';
-                        setTimeout(() => closeScannerModal(), 1200);
-                    } else {
-                        document.getElementById('scanner-result').textContent = `⚠️ Código: ${scannedCode} — no encontrado en inventario`;
-                        document.getElementById('scanner-result').classList.remove('hidden');
-                    }
-                }
-            });
         } catch(err) {
             document.getElementById('scanner-status').textContent = '❌ Error al acceder a la cámara: ' + err.message;
             console.error('Scanner error:', err);
         }
     }
 
-    function closeScannerModal() {
-        _scannerActive = false;
-        if (_zxingReader) {
-            try { _zxingReader.reset(); } catch(e) {}
-            _zxingReader = null;
+    async function closeScannerModal() {
+        if (_html5QrCode) {
+            try {
+                if (_html5QrCode.isScanning) await _html5QrCode.stop();
+                _html5QrCode.clear();
+            } catch(e) { console.warn('Scanner stop error:', e); }
+            _html5QrCode = null;
         }
+        document.getElementById('html5-qr-reader').innerHTML = '';
         document.getElementById('scanner-modal').classList.add('hidden');
     }
 
