@@ -564,35 +564,50 @@ def get_facebook_feed(store_id: str):
         
     base_url = "https://capsuleshop.net"
     
-    tech_keywords = [
-        'adaptador', 'cable', 'apple', 'audio', 'auricular', 'audifono', 'auto', 'bluetooth',
-        'cargador', 'laptop', 'computacion', 'fotografia', 'smart', 'soporte', 'base',
-        'video', 'videojuego', 'internet', 'hub', 'lector', 'usb', 'pc', 'gamer', 'hdmi',
-        'inalambrico', 'memoria', 'teclado', 'mouse', 'consola', 'celular', 'iphone', 'samsung', 'tripode', 'luz'
-    ]
-    vintage_keywords = [
-        'vintage', 'coleccionable', 'combo', 'retro', 'carta', 'pokemon', 'tcg',
-        'vinilo', 'vhs', 'cassette', 'juguete', 'figura', 'funko', 'comic', 'manga', 'antiguo'
-    ]
-    health_home_keywords = [
-        'bolso', 'cover', 'funda', 'deporte', 'sport', 'herramienta', 'hogar',
-        'salud', 'belleza', 'mascota', 'musica', 'instrumento', 'tensiometro',
-        'masajeador', 'extractor', 'medico', 'oximetro', 'cocina', 'limpieza',
-        'ejercicio', 'pesa', 'yoga', 'brazalete', 'banda', 'botella', 'termo', 'masaje'
-    ]
+    # Mapeo exacto basado en el documento de Word
+    category_mapping = {
+        # Tecnología gadgets
+        "Adaptadores Ac": "Tecnología gadgets",
+        "Adaptadores Y Cables": "Tecnología gadgets",
+        "Apple Accesorios": "Tecnología gadgets",
+        "Audio Accesorios": "Tecnología gadgets",
+        "Auriculares": "Tecnología gadgets",
+        "Auto Accesorios": "Tecnología gadgets",
+        "Bluetooth": "Tecnología gadgets",
+        "Cables Y Adaptadores": "Tecnología gadgets",
+        "Cables Y Cargadores": "Tecnología gadgets",
+        "Cargadores Laptop": "Tecnología gadgets",
+        "Computación Accesorios": "Tecnología gadgets",
+        "Fotografía Accesorios": "Tecnología gadgets",
+        "Smart Y Accesorios": "Tecnología gadgets",
+        "Soportes Y Bases": "Tecnología gadgets",
+        "Video Accesorios": "Tecnología gadgets",
+        "Videojuegos Y Accesorios": "Tecnología gadgets",
+        "Internet Accesorios": "Tecnología gadgets",
+        "Hubs Y Lectores": "Tecnología gadgets",
+        "Digitales": "Tecnología gadgets",
+        
+        # Coleccionismo vintage
+        "Vintage": "Coleccionismo vintage",
+        "Coleccionables": "Coleccionismo vintage",
+        "Liquidación Combos": "Coleccionismo vintage",
+        
+        # Hogar y salud
+        "Bolsos": "Hogar y salud",
+        "Covers Y Fundas": "Hogar y salud",
+        "Deporte Sport": "Hogar y salud",
+        "Herramientas": "Hogar y salud",
+        "Hogar": "Hogar y salud",
+        "Salud Y Belleza": "Hogar y salud",
+        "Mascotas": "Hogar y salud",
+        "Música E Instrumentos": "Hogar y salud"
+    }
 
-    def classify_product(title, description):
-        text = (title + " " + description).lower()
-        tech_score = sum(1 for k in tech_keywords if k in text)
-        vintage_score = sum(1 for k in vintage_keywords if k in text)
-        health_score = sum(1 for k in health_home_keywords if k in text)
-        if vintage_score > 0 and vintage_score >= tech_score and vintage_score >= health_score:
-            return 'Coleccionismo vintage'
-        elif health_score > 0 and health_score > tech_score:
-            return 'Hogar y salud'
-        elif tech_score > 0:
-            return 'Tecnología gadgets'
-        return 'Tecnología gadgets'
+    def classify_product(subcategoria):
+        # Limpieza por si hay espacios
+        sub_clean = str(subcategoria).strip()
+        # Buscar en el mapa, si no está, mandarlo a Tecnología por defecto o Sin categoría
+        return category_mapping.get(sub_clean, "Tecnología gadgets")
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -616,6 +631,8 @@ def get_facebook_feed(store_id: str):
         pid = p.get("id", "")
         title = p.get("name", "")
         desc = p.get("desc", "") or title
+        subcategoria_db = p.get("category", "")
+        
         availability = "in stock"
         condition = "new"
         
@@ -638,7 +655,7 @@ def get_facebook_feed(store_id: str):
         
         brand = settings.get("name", "Capsule Store")
         
-        category = classify_product(title, desc)
+        category = classify_product(subcategoria_db)
         
         writer.writerow([pid, title, desc, availability, condition, price, link, main_img, additional_image_link, brand, category, category])
         
