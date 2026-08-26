@@ -564,11 +564,41 @@ def get_facebook_feed(store_id: str):
         
     base_url = "https://capsuleshop.net"
     
+    tech_keywords = [
+        'adaptador', 'cable', 'apple', 'audio', 'auricular', 'audifono', 'auto', 'bluetooth',
+        'cargador', 'laptop', 'computacion', 'fotografia', 'smart', 'soporte', 'base',
+        'video', 'videojuego', 'internet', 'hub', 'lector', 'usb', 'pc', 'gamer', 'hdmi',
+        'inalambrico', 'memoria', 'teclado', 'mouse', 'consola', 'celular', 'iphone', 'samsung', 'tripode', 'luz'
+    ]
+    vintage_keywords = [
+        'vintage', 'coleccionable', 'combo', 'retro', 'carta', 'pokemon', 'tcg',
+        'vinilo', 'vhs', 'cassette', 'juguete', 'figura', 'funko', 'comic', 'manga', 'antiguo'
+    ]
+    health_home_keywords = [
+        'bolso', 'cover', 'funda', 'deporte', 'sport', 'herramienta', 'hogar',
+        'salud', 'belleza', 'mascota', 'musica', 'instrumento', 'tensiometro',
+        'masajeador', 'extractor', 'medico', 'oximetro', 'cocina', 'limpieza',
+        'ejercicio', 'pesa', 'yoga', 'brazalete', 'banda', 'botella', 'termo', 'masaje'
+    ]
+
+    def classify_product(title, description):
+        text = (title + " " + description).lower()
+        tech_score = sum(1 for k in tech_keywords if k in text)
+        vintage_score = sum(1 for k in vintage_keywords if k in text)
+        health_score = sum(1 for k in health_home_keywords if k in text)
+        if vintage_score > 0 and vintage_score >= tech_score and vintage_score >= health_score:
+            return 'Coleccionismo vintage'
+        elif health_score > 0 and health_score > tech_score:
+            return 'Hogar y salud'
+        elif tech_score > 0:
+            return 'Tecnología gadgets'
+        return 'Tecnología gadgets'
+
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Cabeceras requeridas por Facebook (agregado additional_image_link)
-    writer.writerow(["id", "title", "description", "availability", "condition", "price", "link", "image_link", "additional_image_link", "brand"])
+    # Cabeceras requeridas por Facebook (agregado additional_image_link, google_product_category, custom_label_0)
+    writer.writerow(["id", "title", "description", "availability", "condition", "price", "link", "image_link", "additional_image_link", "brand", "google_product_category", "custom_label_0"])
     
     for p in inventory:
         if p.get("isPublic") is False:
@@ -608,7 +638,9 @@ def get_facebook_feed(store_id: str):
         
         brand = settings.get("name", "Capsule Store")
         
-        writer.writerow([pid, title, desc, availability, condition, price, link, main_img, additional_image_link, brand])
+        category = classify_product(title, desc)
+        
+        writer.writerow([pid, title, desc, availability, condition, price, link, main_img, additional_image_link, brand, category, category])
         
     output.seek(0)
     return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=feed_{store_id}.csv"})
