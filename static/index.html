@@ -220,9 +220,17 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     <!-- Gráfico de Ventas -->
                     <div class="col-span-1 lg:col-span-2 bg-gray-800/80 border border-gray-700 rounded-xl p-4 shadow-lg backdrop-blur-md">
-                        <div class="flex justify-between items-center mb-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                             <h3 class="font-bold text-sm text-gray-200">Evolución de Ventas</h3>
-                            <span id="dash-filter-label" class="text-[10px] text-indigo-300 font-semibold bg-indigo-900/50 border border-indigo-700/50 px-2.5 py-1 rounded-full uppercase tracking-wide">Todo el tiempo</span>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <div class="flex bg-gray-900/80 rounded-lg p-0.5 border border-gray-700">
+                                    <button onclick="setChartGrouping('day')" class="chart-group-btn px-2.5 py-1 rounded text-[10px] font-bold transition-all bg-indigo-600 text-white" data-group="day">Día</button>
+                                    <button onclick="setChartGrouping('week')" class="chart-group-btn px-2.5 py-1 rounded text-[10px] font-bold transition-all text-gray-400 hover:text-gray-200" data-group="week">Semana</button>
+                                    <button onclick="setChartGrouping('month')" class="chart-group-btn px-2.5 py-1 rounded text-[10px] font-bold transition-all text-gray-400 hover:text-gray-200" data-group="month">Mes</button>
+                                    <button onclick="setChartGrouping('year')" class="chart-group-btn px-2.5 py-1 rounded text-[10px] font-bold transition-all text-gray-400 hover:text-gray-200" data-group="year">Año</button>
+                                </div>
+                                <span id="dash-filter-label" class="text-[10px] text-indigo-300 font-semibold bg-indigo-900/50 border border-indigo-700/50 px-2.5 py-1 rounded-full uppercase tracking-wide">Todo el tiempo</span>
+                            </div>
                         </div>
                         <div class="w-full h-64 relative">
                             <canvas id="salesChart"></canvas>
@@ -307,8 +315,12 @@
                             <h3 id="dash-yesterday" class="text-xl font-black mt-1 text-white">L 0.00</h3>
                         </button>
                         <button onclick="applyQuickFilter('month')" class="quick-filter-btn bg-gray-800/80 p-4 rounded-xl shadow-lg border border-gray-700 border-l-4 border-l-emerald-500 text-left hover:bg-gray-700/80 active:scale-95 transition-all group">
-                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide group-hover:text-emerald-400 transition-colors">Último Mes</p>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide group-hover:text-emerald-400 transition-colors">Mes Actual</p>
                             <h3 id="dash-month" class="text-xl font-black mt-1 text-white">L 0.00</h3>
+                        </button>
+                        <button onclick="applyQuickFilter('lastMonth')" class="quick-filter-btn bg-gray-800/80 p-4 rounded-xl shadow-lg border border-gray-700 border-l-4 border-l-amber-500 text-left hover:bg-gray-700/80 active:scale-95 transition-all group">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide group-hover:text-amber-400 transition-colors">Mes Pasado</p>
+                            <h3 id="dash-last-month" class="text-xl font-black mt-1 text-white">L 0.00</h3>
                         </button>
                     </div>
                     
@@ -2815,8 +2827,8 @@
         function _fmt(val, curr) {
             return `${curr} ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
-        function _toDateStr(d) { // YYYY-MM-DD
-            return d.toISOString().split('T')[0];
+        function _toDateStr(d) { // YYYY-MM-DD (local)
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
         // ── Filtros rápidos ─────────────────────────────────────────
@@ -2835,6 +2847,9 @@
             } else if (period === 'year') {
                 start = new Date(now.getFullYear(), 0, 1);
                 end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+            } else if (period === 'lastMonth') {
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
             }
             document.getElementById('dash-date-start').value = _toDateStr(start);
             document.getElementById('dash-date-end').value = _toDateStr(end);
@@ -2849,6 +2864,21 @@
         // ── Gráficos Globales ───────────────────────────────────────
         let dashSalesChart = null;
         let dashProductsChart = null;
+        let dashChartGrouping = 'day';
+
+        function setChartGrouping(mode) {
+            dashChartGrouping = mode;
+            document.querySelectorAll('.chart-group-btn').forEach(btn => {
+                if (btn.dataset.group === mode) {
+                    btn.classList.add('bg-indigo-600', 'text-white');
+                    btn.classList.remove('text-gray-400', 'hover:text-gray-200');
+                } else {
+                    btn.classList.remove('bg-indigo-600', 'text-white');
+                    btn.classList.add('text-gray-400', 'hover:text-gray-200');
+                }
+            });
+            renderDashboard();
+        }
 
         // ── renderDashboard ─────────────────────────────────────────
         function renderDashboard() {
@@ -2957,6 +2987,10 @@
             document.getElementById('dash-month').innerText = _fmt(_sumSales(_salesInRange(monthStart, todayEnd)), curr);
             const dashYear = document.getElementById('dash-year');
             if (dashYear) dashYear.innerText = _fmt(_sumSales(_salesInRange(yearStart, yearEnd)), curr);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            const dashLastMonth = document.getElementById('dash-last-month');
+            if (dashLastMonth) dashLastMonth.innerText = _fmt(_sumSales(_salesInRange(lastMonthStart, lastMonthEnd)), curr);
 
             // --- Metas de Ventas ---
             const dailySalesGoal = Number(s.dailySalesGoal) || 1000;
@@ -3022,22 +3056,67 @@
             if (dashSalesChart) dashSalesChart.destroy();
             if (dashProductsChart) dashProductsChart.destroy();
 
-            const salesByDate = {};
+            // Función helper para obtener la key de agrupación
+            function getGroupKey(dateObj, mode) {
+                const y = dateObj.getFullYear();
+                const m = dateObj.getMonth();
+                const d = dateObj.getDate();
+                if (mode === 'day') {
+                    return dateObj.toLocaleDateString('es-HN', { month: 'short', day: 'numeric' });
+                } else if (mode === 'week') {
+                    // Inicio de semana (lunes)
+                    const day = dateObj.getDay();
+                    const diff = (day === 0 ? -6 : 1) - day;
+                    const monday = new Date(y, m, d + diff);
+                    const weekLabel = monday.toLocaleDateString('es-HN', { day: 'numeric', month: 'short' });
+                    return `Sem ${weekLabel}`;
+                } else if (mode === 'month') {
+                    return dateObj.toLocaleDateString('es-HN', { month: 'short', year: 'numeric' });
+                } else if (mode === 'year') {
+                    return String(y);
+                }
+                return dateObj.toLocaleDateString('es-HN', { month: 'short', day: 'numeric' });
+            }
+
+            // Función para ordenar las keys agrupadas cronológicamente
+            function sortGroupedKeys(salesMap, mode) {
+                return Object.keys(salesMap).sort((a, b) => {
+                    // Extraer la primera fecha de cada grupo para ordenar
+                    const getFirstDate = (key) => {
+                        if (mode === 'year') return new Date(parseInt(key), 0, 1);
+                        // Para otros modos, buscar la primera venta con esa key
+                        for (const sale of filteredSales) {
+                            if (sale.status === 'ANULADA') continue;
+                            const sd = new Date(sale.date);
+                            if (getGroupKey(sd, mode) === key) return sd;
+                        }
+                        return new Date(0);
+                    };
+                    return getFirstDate(a) - getFirstDate(b);
+                });
+            }
+
+            const salesGrouped = {};
             [...filteredSales].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(s => {
                 if(s.status === 'ANULADA') return;
-                const d = new Date(s.date).toLocaleDateString('es-HN', { month: 'short', day: 'numeric' });
-                salesByDate[d] = (salesByDate[d] || 0) + s.total;
+                const key = getGroupKey(new Date(s.date), dashChartGrouping);
+                salesGrouped[key] = (salesGrouped[key] || 0) + s.total;
             });
+
+            const sortedKeys = sortGroupedKeys(salesGrouped, dashChartGrouping);
+            const sortedValues = sortedKeys.map(k => salesGrouped[k]);
+
+            const groupLabels = { day: 'Ventas Diarias', week: 'Ventas Semanales', month: 'Ventas Mensuales', year: 'Ventas Anuales' };
             
             const salesCtx = document.getElementById('salesChart');
             if (salesCtx) {
                 dashSalesChart = new Chart(salesCtx, {
                     type: 'line',
                     data: {
-                        labels: Object.keys(salesByDate),
+                        labels: sortedKeys,
                         datasets: [{
-                            label: 'Ventas Diarias',
-                            data: Object.values(salesByDate),
+                            label: groupLabels[dashChartGrouping] || 'Ventas',
+                            data: sortedValues,
                             borderColor: '#6366f1',
                             backgroundColor: 'rgba(99, 102, 241, 0.2)',
                             borderWidth: 2,
@@ -3051,7 +3130,7 @@
                         plugins: { legend: { display: false } },
                         scales: {
                             y: { beginAtZero: true, grid: { color: '#374151' }, ticks: { color: '#9ca3af' } },
-                            x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                            x: { grid: { display: false }, ticks: { color: '#9ca3af', maxRotation: 45 } }
                         }
                     }
                 });
