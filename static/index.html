@@ -531,7 +531,7 @@
                             </div>
                         </div>
                         <div><label class="block text-xs font-bold mb-1">Caja/Ubic</label><input type="text"
-                                id="prod-box" class="w-full border rounded p-2 bg-gray-50 outline-none"></div>
+                                id="prod-box" list="box-datalist" placeholder="Ej. C18" class="w-full border rounded p-2 bg-gray-50 outline-none"><datalist id="box-datalist"></datalist></div>
                         <div class="md:col-span-4"><label
                                 class="block text-xs font-bold mb-1">Descripción</label><textarea id="prod-desc"
                                 rows="2" class="w-full border rounded p-2 bg-gray-50 outline-none"></textarea></div>
@@ -629,19 +629,25 @@
                         <button id="tab-inv-empty" onclick="setInventoryTab('empty')" class="flex-1 px-4 py-1.5 text-sm font-bold text-gray-500 rounded-md hover:bg-white hover:text-gray-800 transition">Sin inventario</button>
                     </div>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <div class="relative flex-grow">
+                <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+                    <div class="relative flex-grow min-w-[200px]">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
                         <input type="text" id="inv-search" oninput="searchInventory()" placeholder="Buscar producto por título, caja o descripción..." class="w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-lg outline-none focus:border-indigo-500 text-sm">
                     </div>
-                    <select id="inv-cat-filter" onchange="renderInventory()" class="bg-gray-50 border rounded-lg px-3 py-2 outline-none text-sm focus:border-indigo-500 min-w-[150px]">
+                    <select id="inv-cat-filter" onchange="renderInventory()" class="bg-gray-50 border rounded-lg px-3 py-2 outline-none text-sm focus:border-indigo-500 min-w-[150px] transition-colors">
                         <option value="Todos">Todas las Categorías</option>
+                    </select>
+                    <select id="inv-box-filter" onchange="renderInventory()" class="bg-gray-50 border rounded-lg px-3 py-2 outline-none text-sm focus:border-indigo-500 min-w-[140px] transition-colors">
+                        <option value="Todos">Todas las Cajas</option>
                     </select>
                     <select id="inv-sort" onchange="renderInventory()" class="bg-gray-50 border rounded-lg px-3 py-2 outline-none text-sm focus:border-indigo-500 min-w-[150px]">
                         <option value="recent">Agregados Recientemente</option>
                         <option value="stock-desc">Mayor Stock</option>
                         <option value="sales-desc">Mayor Movimiento (Ventas)</option>
                     </select>
+                    <button id="btn-clear-inv-filters" onclick="clearInventoryFilters()" title="Limpiar todos los filtros" class="hidden text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg border bg-gray-50 hover:bg-red-50 transition text-sm flex items-center gap-1.5 font-medium">
+                        <i class="fa-solid fa-filter-circle-xmark"></i> <span class="hidden md:inline text-xs">Limpiar</span>
+                    </button>
                 </div>
             </div>
             <div id="inventory-list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
@@ -1124,7 +1130,11 @@
                     salesHistory = cloudData.salesHistory || [];
                     usersDB = cloudData.usersDB || [{ user: 'admin', pass: 'admin123', role: 'admin' }];
                     customersDB = cloudData.customersDB || [];
-                    if (!document.getElementById('tab-inventory').classList.contains('hidden')) renderInventory();
+                    if (!document.getElementById('tab-inventory').classList.contains('hidden')) {
+                        updateCategoryDatalist();
+                        updateBoxFilter();
+                        renderInventory();
+                    }
                     if (!document.getElementById('tab-dashboard').classList.contains('hidden')) renderDashboard();
                 }
             } catch(e) { console.error("Error auto-sync on focus:", e); }
@@ -1178,7 +1188,7 @@
                 usersDB = JSON.parse(localStorage.getItem('capsuleUsers')) || [{ user: 'admin', pass: 'admin123', role: 'admin' }];
                 customersDB = JSON.parse(localStorage.getItem('capsuleCustomers')) || [];
             }
-            loadSettings(); renderInventory(); updateCustomerDatalist(); updateCategoryDatalist(); checkAuth();
+            loadSettings(); updateCategoryDatalist(); updateBoxFilter(); renderInventory(); updateCustomerDatalist(); checkAuth();
             updateViewButtonUI('btn-catalog', currentCatalogView); updateViewButtonUI('btn-pos', currentPOSView); updateViewButtonUI('btn-inv', currentInventoryView);
         };
 
@@ -1251,7 +1261,7 @@
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('bg-indigo-800'); if (btn.dataset.target === tabId) btn.classList.add('bg-indigo-800'); });
             document.querySelectorAll('.nav-btn-mobile').forEach(btn => { btn.classList.remove('text-indigo-600'); btn.classList.add('text-gray-400'); if (btn.dataset.target === tabId) { btn.classList.remove('text-gray-400'); btn.classList.add('text-indigo-600'); } });
-            if (tabId === 'catalog') { initCatalog(); } if (tabId === 'pos') renderPOSProducts(); if (tabId === 'inventory') renderInventory(); if (tabId === 'dashboard') renderDashboard(); if (tabId === 'sales') renderSalesTab();
+            if (tabId === 'catalog') { initCatalog(); } if (tabId === 'pos') renderPOSProducts(); if (tabId === 'inventory') { updateCategoryDatalist(); updateBoxFilter(); renderInventory(); } if (tabId === 'dashboard') renderDashboard(); if (tabId === 'sales') renderSalesTab();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -1450,8 +1460,32 @@
             const list = document.getElementById('inventory-list'); const curr = document.getElementById('set-currency').value || 'L'; list.innerHTML = '';
             
             const searchQ = (document.getElementById('inv-search')?.value || '').toLowerCase();
-            const filterCat = document.getElementById('inv-cat-filter')?.value || 'Todos';
+            const catSelect = document.getElementById('inv-cat-filter');
+            const boxSelect = document.getElementById('inv-box-filter');
+            const filterCat = catSelect?.value || 'Todos';
+            const filterBox = boxSelect?.value || 'Todos';
             const sortMode = document.getElementById('inv-sort')?.value || 'recent';
+
+            if (catSelect) {
+                if (filterCat !== 'Todos') {
+                    catSelect.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-700', 'font-bold');
+                } else {
+                    catSelect.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-700', 'font-bold');
+                }
+            }
+            if (boxSelect) {
+                if (filterBox !== 'Todos') {
+                    boxSelect.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-700', 'font-bold');
+                } else {
+                    boxSelect.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-700', 'font-bold');
+                }
+            }
+
+            const clearBtn = document.getElementById('btn-clear-inv-filters');
+            if (clearBtn) {
+                const hasFilters = Boolean(searchQ || filterCat !== 'Todos' || filterBox !== 'Todos');
+                clearBtn.classList.toggle('hidden', !hasFilters);
+            }
             
             let prods = [...inventory];
             
@@ -1470,6 +1504,13 @@
             }
             if (filterCat !== 'Todos') {
                 prods = prods.filter(p => p.category === filterCat);
+            }
+            if (filterBox !== 'Todos') {
+                if (filterBox === '__SIN_CAJA__') {
+                    prods = prods.filter(p => !p.box || !p.box.trim());
+                } else {
+                    prods = prods.filter(p => (p.box || '').trim().toUpperCase() === filterBox.toUpperCase());
+                }
             }
             if (sortMode === 'stock-desc') {
                 prods.sort((a, b) => b.stock - a.stock);
@@ -1490,7 +1531,17 @@
             }
 
             if (prods.length === 0) {
-                list.innerHTML = '<div class="col-span-full p-10 text-center text-gray-400"><i class="fa-solid fa-box-open text-4xl mb-3"></i><p>No se encontraron productos.</p></div>';
+                let emptyMsg = 'No se encontraron productos.';
+                if (filterBox !== 'Todos') {
+                    emptyMsg = filterBox === '__SIN_CAJA__' 
+                        ? 'No se encontraron productos sin caja asignada.' 
+                        : `No se encontraron productos en la Caja <b>${filterBox}</b>.`;
+                }
+                list.innerHTML = `<div class="col-span-full p-10 text-center text-gray-400">
+                    <i class="fa-solid fa-box-open text-4xl mb-3 text-indigo-300"></i>
+                    <p class="text-sm">${emptyMsg}</p>
+                    ${(filterBox !== 'Todos' || filterCat !== 'Todos' || searchQ) ? '<button onclick="clearInventoryFilters()" class="mt-3 inline-flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg border border-indigo-200 transition"><i class="fa-solid fa-rotate-left"></i> Limpiar filtros</button>' : ''}
+                </div>`;
                 return;
             }
 
@@ -1508,7 +1559,11 @@
                         if(left <= 0) fbBadge = `<span class="text-[10px] text-white bg-red-600 font-bold px-2 rounded animate-pulse">FB: Caducado</span>`;
                         else fbBadge = `<span class="text-[10px] ${left<=3 ? 'text-white bg-orange-500 font-bold' : 'text-gray-600 bg-gray-200'} px-2 rounded">FB: ${left}d</span>`;
                     }
-                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1">${fbBadge}<span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">Caja: ${prod.box || '-'} | Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="openProductLabel('${prod.id}')" class="flex-1 py-2 text-purple-600 text-xs font-bold border-r" title="Generar etiqueta">🏷️</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    const safeBox = (prod.box || '').replace(/'/g, "\\'");
+                    const boxTag = prod.box 
+                        ? `<span onclick="filterByBox('${safeBox}')" class="cursor-pointer hover:text-indigo-600 hover:underline font-bold" title="Filtrar por Caja ${safeBox}">Caja: ${prod.box}</span>` 
+                        : 'Caja: -';
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} flex flex-col relative overflow-hidden">${recBadge}<img src="${prod.img1 || 'https://via.placeholder.com/300?text=Sin+Imagen'}" loading="lazy" class="w-full aspect-square object-cover"><div class="p-3 flex-grow"><span class="text-[9px] font-bold text-indigo-600 uppercase mb-1">${prod.category}</span><h3 class="font-bold text-sm leading-tight">${prod.name}</h3><div class="flex justify-between items-center mt-2"><span class="font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</span><div class="flex flex-col items-end gap-1">${fbBadge}<span class="text-[10px] text-gray-600 bg-gray-100 px-2 rounded">${boxTag} | Stk: ${prod.stock}</span></div></div></div><div class="bg-gray-50 border-t flex"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-r">Editar</button><button onclick="openProductLabel('${prod.id}')" class="flex-1 py-2 text-purple-600 text-xs font-bold border-r" title="Generar etiqueta">🏷️</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
                 list.innerHTML = htmlStr;
             } else {
@@ -1525,7 +1580,11 @@
                         if(left <= 0) fbBadge = `<span class="text-[10px] text-white bg-red-600 font-bold px-1.5 rounded animate-pulse ml-2">FB: Caducado</span>`;
                         else fbBadge = `<span class="text-[10px] ${left<=3 ? 'text-white bg-orange-500 font-bold' : 'text-gray-600 bg-gray-200'} px-1.5 rounded ml-2">FB: ${left}d</span>`;
                     }
-                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${prod.box || 'N/A'} | Stk: ${prod.stock} ${fbBadge}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="openProductLabel('${prod.id}')" class="flex-1 py-2 text-purple-600 text-xs font-bold border-b" title="Etiqueta">🏷️</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
+                    const safeBox = (prod.box || '').replace(/'/g, "\\'");
+                    const boxTag = prod.box 
+                        ? `<span onclick="filterByBox('${safeBox}')" class="cursor-pointer hover:text-indigo-600 hover:underline font-bold text-gray-700" title="Filtrar por Caja ${safeBox}">${prod.box}</span>` 
+                        : 'N/A';
+                    htmlStr += `<div class="bg-white rounded-xl shadow-sm ${borderClass} overflow-hidden flex"><img src="${prod.img1 || 'https://via.placeholder.com/300'}" loading="lazy" class="w-24 aspect-square object-cover"><div class="p-3 flex flex-col justify-center flex-grow"><h3 class="text-sm font-bold line-clamp-1 flex items-center">${prod.name}${recBadge}</h3><p class="text-[10px] text-gray-500 mb-1">Caja: ${boxTag} | Stk: ${prod.stock} ${fbBadge}</p><p class="text-sm font-black text-emerald-600">${curr}${parseFloat(prod.price).toFixed(2)}</p></div><div class="bg-gray-50 border-l flex flex-col w-20"><button onclick="editProduct('${prod.id}')" class="flex-1 py-2 text-indigo-500 text-xs font-bold border-b">Editar</button><button onclick="openProductLabel('${prod.id}')" class="flex-1 py-2 text-purple-600 text-xs font-bold border-b" title="Etiqueta">🏷️</button><button onclick="deleteProduct('${prod.id}')" class="flex-1 py-2 text-red-500 text-xs font-bold">Eliminar</button></div></div>`;
                 });
                 list.innerHTML = htmlStr;
             }
@@ -1535,11 +1594,11 @@
             const id = document.getElementById('prod-id').value || 'PRD-' + Date.now();
             let oldProd = inventory.find(p => p.id === id);
             const pubAt = oldProd && oldProd.publishedAt ? oldProd.publishedAt : new Date().toISOString();
-            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: document.getElementById('prod-box').value, desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, isRecurring: document.getElementById('prod-recurring').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now(), publishedAt: pubAt };
+            const np = { id: id, name: document.getElementById('prod-name').value, category: document.getElementById('prod-category').value, box: (document.getElementById('prod-box').value || '').trim().toUpperCase(), desc: document.getElementById('prod-desc').value, cost: parseFloat(document.getElementById('prod-cost').value), price: parseFloat(document.getElementById('prod-price').value), stock: parseInt(document.getElementById('prod-stock').value), isPublic: document.getElementById('prod-public').checked, isRecurring: document.getElementById('prod-recurring').checked, img1: document.getElementById('prod-img1').value, img2: document.getElementById('prod-img2').value, img3: document.getElementById('prod-img3').value, video: document.getElementById('prod-video').value, lastUpdated: Date.now(), publishedAt: pubAt };
             const idx = inventory.findIndex(p => p.id === id); if (idx > -1) { inventory.splice(idx, 1); inventory.unshift(np); } else inventory.unshift(np);
             // Guardar categoría nueva en la lista persistente
             saveCategoryIfNew(np.category);
-            toggleProductForm(); renderInventory(); updateCategoryDatalist(); syncToCloud();
+            toggleProductForm(); updateCategoryDatalist(); updateBoxFilter(); renderInventory(); syncToCloud();
         });
 
         // ─────────────────────────────────────────────────────────────
@@ -2031,6 +2090,7 @@
                 });
 
                 updateCategoryDatalist();
+                updateBoxFilter();
                 renderCategoryModalList();
                 if (updated) {
                     syncToCloud();
@@ -2066,6 +2126,79 @@
             }
         }
 
+        function updateBoxFilter() {
+            const filterSelect = document.getElementById('inv-box-filter');
+            if (!filterSelect) return;
+
+            const boxCounts = {};
+            let sinCajaCount = 0;
+
+            inventory.forEach(p => {
+                let b = (p.box || '').trim();
+                if (!b && p.desc) {
+                    const match = p.desc.match(/caja\s*[:#\-]?\s*([a-zA-Z0-9\-\#]+)/i);
+                    if (match && match[1]) {
+                        b = match[1].trim();
+                        p.box = b.toUpperCase();
+                    }
+                }
+                if (b) {
+                    const normalized = b.toUpperCase();
+                    boxCounts[normalized] = (boxCounts[normalized] || 0) + 1;
+                } else {
+                    sinCajaCount++;
+                }
+            });
+
+            const sortedBoxes = Object.keys(boxCounts).sort((a, b) =>
+                a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+            );
+
+            const currentVal = filterSelect.value;
+            let optionsHtml = '<option value="Todos">Todas las Cajas</option>';
+
+            sortedBoxes.forEach(b => {
+                const label = b.toUpperCase().startsWith('CAJA') ? b : `Caja ${b}`;
+                optionsHtml += `<option value="${b}">${label} (${boxCounts[b]})</option>`;
+            });
+
+            if (sinCajaCount > 0) {
+                optionsHtml += `<option value="__SIN_CAJA__">Sin Caja asignada (${sinCajaCount})</option>`;
+            }
+
+            filterSelect.innerHTML = optionsHtml;
+            if (currentVal && (sortedBoxes.includes(currentVal) || currentVal === '__SIN_CAJA__' || currentVal === 'Todos')) {
+                filterSelect.value = currentVal;
+            } else {
+                filterSelect.value = 'Todos';
+            }
+
+            const boxDatalist = document.getElementById('box-datalist');
+            if (boxDatalist) {
+                boxDatalist.innerHTML = sortedBoxes.map(b => `<option value="${b}">`).join('');
+            }
+        }
+
+        function filterByBox(boxName) {
+            if (!boxName || boxName === '-' || boxName === 'N/A') return;
+            const filterSelect = document.getElementById('inv-box-filter');
+            if (filterSelect) {
+                filterSelect.value = boxName.trim().toUpperCase();
+                renderInventory();
+                filterSelect.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function clearInventoryFilters() {
+            const searchEl = document.getElementById('inv-search');
+            if (searchEl) searchEl.value = '';
+            const catEl = document.getElementById('inv-cat-filter');
+            if (catEl) catEl.value = 'Todos';
+            const boxEl = document.getElementById('inv-box-filter');
+            if (boxEl) boxEl.value = 'Todos';
+            renderInventory();
+        }
+
         // Preview listeners for manual URL paste
         ['prod-img1', 'prod-img2', 'prod-img3'].forEach(id => {
             document.getElementById(id).addEventListener('input', () => updateImgPreview(id));
@@ -2073,12 +2206,21 @@
         function editProduct(id) {
             const p = inventory.find(x => x.id === id); if (!p) return;
             updateCategoryDatalist(); // Poblar select antes de setear el valor
+            updateBoxFilter(); // Poblar datalist de cajas
             document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; document.getElementById('prod-category').value = p.category; document.getElementById('prod-box').value = p.box || ''; document.getElementById('prod-cost').value = p.cost; document.getElementById('prod-price').value = p.price; document.getElementById('prod-stock').value = p.stock; document.getElementById('prod-desc').value = p.desc || ''; document.getElementById('prod-public').checked = p.isPublic !== false; document.getElementById('prod-recurring').checked = p.isRecurring === true; document.getElementById('prod-img1').value = p.img1 || ''; document.getElementById('prod-img2').value = p.img2 || ''; document.getElementById('prod-img3').value = p.img3 || ''; document.getElementById('prod-video').value = p.video || '';
             updateImgPreview('prod-img1'); updateImgPreview('prod-img2'); updateImgPreview('prod-img3');
             updateVideoPreview(); 
             document.getElementById('product-form-container').classList.remove('hidden'); window.scrollTo(0, 0);
         }
-        function deleteProduct(id) { if (confirm('¿Eliminar?')) { inventory = inventory.filter(p => p.id !== id); renderInventory(); syncToCloud(); } }
+        function deleteProduct(id) { 
+            if (confirm('¿Eliminar?')) { 
+                inventory = inventory.filter(p => p.id !== id); 
+                updateCategoryDatalist(); 
+                updateBoxFilter(); 
+                renderInventory(); 
+                syncToCloud(); 
+            } 
+        }
 
         // ─────────────────────────────────────────────────────────────
         // EXPORTAR INVENTARIO A EXCEL
@@ -2292,7 +2434,7 @@
                 else { inventory.push(prod); added++; }
             });
 
-            renderInventory(); renderPOSProducts(); syncToCloud();
+            updateCategoryDatalist(); updateBoxFilter(); renderInventory(); renderPOSProducts(); syncToCloud();
             alert(`✅ Importación completa:\n• ${added} productos nuevos agregados\n• ${updated} productos actualizados\n• ${skipped} filas omitidas (sin nombre)`);
         }
 
@@ -2421,7 +2563,7 @@
             const q = document.getElementById('pos-search')?.value.toLowerCase() || '';
             let prods = inventory.filter(p => p.stock > 0);
             if (q) prods = prods.filter(p =>
-                p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
+                p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q) || (p.box || '').toLowerCase().includes(q));
 
             if (currentPOSView === 'grid') {
                 list.className = 'grid grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] lg:h-[calc(100vh-250px)] no-scrollbar p-1 content-start';
